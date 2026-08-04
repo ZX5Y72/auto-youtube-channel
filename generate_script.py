@@ -4,7 +4,7 @@ import json
 
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
-model = genai.GenerativeModel("gemini-2.0-flash")
+model = genai.GenerativeModel("gemini-flash-latest")
 
 TOPIC_PROMPT = """
 You create scripts for a YouTube Shorts channel about ancient history and civilizations
