@@ -2,6 +2,8 @@ import json
 from PIL import Image, ImageDraw, ImageFont
 import os
 
+os.makedirs("output", exist_ok=True)
+
 with open("output/content.json", "r") as f:
     data = json.load(f)
 
