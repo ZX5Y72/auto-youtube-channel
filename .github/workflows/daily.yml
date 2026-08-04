@@ -1,0 +1,53 @@
+name: Daily History Short
+
+on:
+  schedule:
+    - cron: '0 15 * * *'   # runs daily at 15:00 UTC — adjust to whenever you want it posted
+  workflow_dispatch:        # lets you also trigger it manually from GitHub's Actions tab
+
+jobs:
+  make-and-upload-video:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python generate_script.py
+
+      - name: Generate images
+        env:
+          HF_API_KEY: ${{ secrets.HF_API_KEY }}
+        run: python generate_images.py
+
+      - name: Generate voiceover
+        run: python generate_voiceover.py
+
+      - name: Generate captions
+        run: python generate_captions.py
+
+      - name: Assemble video
+        run: python assemble_video.py
+
+      - name: Generate thumbnail
+        run: python generate_thumbnail.py
+
+      - name: Upload to YouTube
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python upload_video.py
