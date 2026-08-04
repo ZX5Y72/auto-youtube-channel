@@ -2,6 +2,8 @@ import google.generativeai as genai
 import os
 import json
 
+os.makedirs("output", exist_ok=True)
+
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
 model = genai.GenerativeModel("gemini-flash-latest")
