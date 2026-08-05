@@ -24,16 +24,16 @@ for i, img_file in enumerate(image_files):
     style = i % 4
 
     if style == 0:
-        clip = clip.resized(lambda t: 1 + 0.05 * t)
-        clip = clip.with_position(lambda t: (-20 * t, "center"))
+        clip = clip.resized(lambda t: 1 + 0.15 * t)
+        clip = clip.with_position(lambda t: (-35 * t, "center"))
     elif style == 1:
-        clip = clip.resized(lambda t: 1.15 - 0.05 * t)
-        clip = clip.with_position(lambda t: (20 * t, "center"))
+        clip = clip.resized(lambda t: 1.25 - 0.15 * t)
+        clip = clip.with_position(lambda t: (35 * t, "center"))
     elif style == 2:
-        clip = clip.resized(lambda t: 1 + 0.05 * t)
-        clip = clip.with_position(lambda t: ("center", -15 * t))
+        clip = clip.resized(lambda t: 1 + 0.15 * t)
+        clip = clip.with_position(lambda t: ("center", -30 * t))
     else:
-        clip = clip.resized(lambda t: 1 + 0.03 * t)
+        clip = clip.resized(lambda t: 1 + 0.10 * t)
 
     clips.append(clip)
 
