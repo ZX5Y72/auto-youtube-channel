@@ -1,5 +1,5 @@
 import json
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip
+from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip
 import os
 
 os.makedirs("output", exist_ok=True)
