@@ -37,7 +37,7 @@ video.write_videofile("output/temp_video.mp4", fps=30, codec="libx264", audio_co
 # Burn captions in with FFmpeg
 subprocess.run([
     "ffmpeg", "-y", "-i", "output/temp_video.mp4",
-    "-vf", "subtitles=output/captions.srt:force_style='FontName=Arial,FontSize=16,Bold=1,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=3,Alignment=2,MarginV=100'",
+    "-vf", "subtitles=output/captions.srt:force_style='FontName=Arial Black,FontSize=16,Bold=1,PrimaryColour=&H00FFFF,OutlineColour=&H000000,Outline=3,Shadow=0,BorderStyle=1,Alignment=2,MarginV=120'",
     "-c:a", "copy", "output/final_video.mp4"
 ])
 
