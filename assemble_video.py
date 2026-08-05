@@ -62,7 +62,7 @@ subprocess.run([
     "[blended]subtitles=output/captions.srt:force_style='FontName=Arial Black,FontSize=16,Bold=1,PrimaryColour=&H00FFFF,OutlineColour=&H000000,Outline=3,Shadow=0,BorderStyle=1,Alignment=2,MarginV=120'[vout];"
     "[1:a]volume=0.12[music];[0:a][music]amix=inputs=2:duration=first[aout]",
     "-map", "[vout]", "-map", "[aout]",
-    "-shortest",
+    "-t", str(total_duration),
     "-c:v", "libx264", "-c:a", "aac",
     "output/final_video.mp4"
 ])
