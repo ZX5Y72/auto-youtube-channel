@@ -1,5 +1,8 @@
 import whisper
 import json
+import os
+
+os.makedirs("output", exist_ok=True)
 
 model = whisper.load_model("base")
 result = model.transcribe("output/voiceover.mp3", word_timestamps=False)
