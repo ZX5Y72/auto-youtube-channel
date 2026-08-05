@@ -29,6 +29,9 @@ jobs:
         run: python generate_script.py
 
       - name: Generate images
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: python generate_images.py
 
       - name: Generate voiceover
