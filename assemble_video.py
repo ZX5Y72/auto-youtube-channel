@@ -16,11 +16,32 @@ image_files = sorted(os.listdir("output/images"))
 num_images = len(image_files)
 duration_per_image = total_duration / num_images
 
+import math
+
 clips = []
 for i, img_file in enumerate(image_files):
     img_path = os.path.join("output/images", img_file)
     clip = ImageClip(img_path).with_duration(duration_per_image)
-    clip = clip.resized(lambda t: 1 + 0.04 * t)
+
+    # Vary the motion style per scene so it doesn't feel repetitive
+    style = i % 4
+
+    if style == 0:
+        # Zoom in, pan right
+        clip = clip.resized(lambda t: 1 + 0.05 * t)
+        clip = clip.with_position(lambda t: (-20 * t, "center"))
+    elif style == 1:
+        # Zoom out, pan left
+        clip = clip.resized(lambda t: 1.15 - 0.05 * t)
+        clip = clip.with_position(lambda t: (20 * t, "center"))
+    elif style == 2:
+        # Zoom in, pan up
+        clip = clip.resized(lambda t: 1 + 0.05 * t)
+        clip = clip.with_position(lambda t: ("center", -15 * t))
+    else:
+        # Slow zoom in, static center (for variety/breathing room)
+        clip = clip.resized(lambda t: 1 + 0.03 * t)
+
     clips.append(clip)
 
 video = concatenate_videoclips(clips, method="compose")
