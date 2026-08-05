@@ -57,7 +57,7 @@ subprocess.run([
     "-stream_loop", "-1", "-i", chosen_music,
     "-stream_loop", "-1", "-i", chosen_overlay,
     "-filter_complex",
-    "[2:v]scale=1080:1920,format=rgba,colorchannelmixer=aa=0.35[overlay];"
+    "[2:v]scale=1080:1920,hue=s=0,eq=contrast=1.6:brightness=-0.25,format=rgba,colorchannelmixer=aa=0.15[overlay];"
     "[0:v][overlay]blend=all_mode='screen'[blended];"
     "[blended]ass=output/captions.ass[vout];"
     "[1:a]volume=0.12[music];[0:a][music]amix=inputs=2:duration=first[aout]",
