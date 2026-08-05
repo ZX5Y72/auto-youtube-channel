@@ -59,7 +59,7 @@ subprocess.run([
     "-filter_complex",
     "[2:v]scale=1080:1920,format=rgba,colorchannelmixer=aa=0.35[overlay];"
     "[0:v][overlay]blend=all_mode='screen'[blended];"
-    "[blended]subtitles=output/captions.srt:force_style='FontName=Arial Black,FontSize=16,Bold=1,PrimaryColour=&H00FFFF,OutlineColour=&H000000,Outline=3,Shadow=0,BorderStyle=1,Alignment=2,MarginV=120'[vout];"
+    "[blended]ass=output/captions.ass[vout];"
     "[1:a]volume=0.12[music];[0:a][music]amix=inputs=2:duration=first[aout]",
     "-map", "[vout]", "-map", "[aout]",
     "-t", str(total_duration),
