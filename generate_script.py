@@ -15,7 +15,6 @@ if os.path.exists(HISTORY_FILE):
 else:
     history = []
 
-# Only show the last 30 to keep the prompt from growing forever
 recent_topics = history[-30:]
 avoid_list = "\n".join(f"- {t}" for t in recent_topics) if recent_topics else "None yet"
 
@@ -29,17 +28,16 @@ that hasn't gotten overused/clickbaited-to-death. Prefer specific, verifiable de
 IMPORTANT: Do NOT repeat or closely resemble any of these already-used topics:
 {avoid_list}
 
-Pick something genuinely different from all of the above — a different civilization, era, or angle.
-
 Generate a single JSON object with these exact keys:
 
 - "civilization": the civilization this is about
 - "topic": the specific fact/story you picked
-- "script": a spoken voiceover script. STRICT REQUIREMENT: it must be between 100 and 140 words, no more, no less. Count your words before responding. This is for a 45-55 second YouTube Short and going over will break the video. Hook in the first line, conversational tone, no stage directions.
+- "hook_text": a SHORT punchy on-screen text (3-6 words, no punctuation needed), a bold statement or question that creates instant curiosity, shown as a flash graphic before the video even starts talking
+- "script": a spoken voiceover script. STRICT REQUIREMENT: 100-140 words. The first sentence must be a strong hook (a surprising fact, a question, or a bold claim) - not a generic intro. End with ONE short natural sentence encouraging the viewer to follow for more history content (e.g. "Follow for more forgotten history" - vary the phrasing, keep it casual not salesy). Conversational tone, no stage directions.
 - "title": a catchy YouTube Shorts title, under 60 characters
 - "description": a 2-3 sentence description, mention it's part of a history series
-- "hashtags": an array of 6 relevant hashtags (no # symbol), mix broad (history, ancienthistory) and specific (e.g. ancientegypt, romanempire)
-- "image_prompts": an array of 8-10 image generation prompts, one for roughly every 1.5-2 seconds of the script (a new visual should appear on almost every sentence or major phrase, not one image per whole idea). Make each prompt visually distinct from the others — different camera angle, different moment, different character/detail — so consecutive images don't look repetitive. EACH prompt must end with this exact style suffix: ", digital illustration, painterly animated style, warm muted color palette, dramatic lighting, detailed historical accuracy, no text, no watermark"
+- "hashtags": an array of 6 relevant hashtags (no # symbol)
+- "image_prompts": an array of 8-10 image generation prompts, one for roughly every 1.5-2 seconds of the script, visually distinct from each other. EACH prompt must end with this exact style suffix: ", digital illustration, painterly animated style, warm muted color palette, dramatic lighting, detailed historical accuracy, no text, no watermark"
 
 Return ONLY the JSON object, no markdown formatting, no backticks, no extra text.
 """
@@ -47,8 +45,23 @@ Return ONLY the JSON object, no markdown formatting, no backticks, no extra text
 response = model.generate_content(TOPIC_PROMPT)
 text = response.text.strip()
 text = text.replace("```json", "").replace("```", "").strip()
-
 data = json.loads(text)
+
+# Self-critique pass: rewrite the hook specifically for maximum punch
+CRITIQUE_PROMPT = f"""
+Here is the opening line of a YouTube Shorts script: "{data['script'].split('.')[0]}."
+
+Rewrite ONLY this opening line to be as scroll-stopping and curiosity-inducing as possible.
+Rules: under 15 words, no generic phrases like "did you know", must create an open question in the viewer's mind, historically accurate, matches this topic: {data['topic']}.
+
+Return ONLY the rewritten sentence, nothing else, no quotation marks.
+"""
+critique_response = model.generate_content(CRITIQUE_PROMPT)
+new_hook = critique_response.text.strip().strip('"')
+
+original_sentences = data["script"].split(".")
+original_sentences[0] = new_hook.rstrip(".")
+data["script"] = ".".join(original_sentences).strip()
 
 word_count = len(data["script"].split())
 if word_count > 160:
@@ -63,7 +76,6 @@ if word_count > 160:
 with open("output/content.json", "w") as f:
     json.dump(data, f, indent=2)
 
-# Add this topic to history for next time
 history.append(f"{data['civilization']}: {data['topic']}")
 with open(HISTORY_FILE, "w") as f:
     json.dump(history, f, indent=2)
