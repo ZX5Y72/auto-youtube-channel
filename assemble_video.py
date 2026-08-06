@@ -1,5 +1,5 @@
 import json
-from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
+from moviepy import ImageClip, VideoFileClip, AudioFileClip, concatenate_videoclips
 import os
 import subprocess
 import random
@@ -13,22 +13,17 @@ audio = AudioFileClip("output/voiceover.mp3")
 total_duration = audio.duration
 
 image_files = sorted(os.listdir("output/images"))
-num_images = num_scenes
-duration_per_image = duration_per_scene
-from moviepy import VideoFileClip
 
-clips = []
-
-# Load any B-roll clips we fetched
 broll_dir = "output/broll"
 broll_files = sorted(os.listdir(broll_dir)) if os.path.exists(broll_dir) else []
 
 scene_sources = list(image_files) + list(broll_files)
-random.shuffle(scene_sources)  # mix broll and AI images unpredictably
+random.shuffle(scene_sources)
 
 num_scenes = len(scene_sources)
 duration_per_scene = total_duration / num_scenes
 
+clips = []
 for i, filename in enumerate(scene_sources):
     style = i % 4
 
@@ -56,7 +51,6 @@ for i, filename in enumerate(scene_sources):
 
 video = concatenate_videoclips(clips, method="compose")
 video = video.with_audio(audio)
-
 video = video.resized(height=1920)
 video = video.cropped(x_center=video.w / 2, width=1080)
 
@@ -68,21 +62,44 @@ chosen_music = os.path.join("music", random.choice(music_files))
 overlay_files = [f for f in os.listdir("overlays") if f.endswith((".mp4", ".m4v"))]
 chosen_overlay = os.path.join("overlays", random.choice(overlay_files))
 
-subprocess.run([
-    "ffmpeg", "-y",
-    "-i", "output/temp_video.mp4",
-    "-stream_loop", "-1", "-i", chosen_music,
-    "-stream_loop", "-1", "-i", chosen_overlay,
-    "-filter_complex",
+sfx_files = [f for f in os.listdir("sfx") if f.endswith((".mp3", ".wav"))]
+
+cut_times = [duration_per_scene * i for i in range(1, num_scenes)]
+
+inputs = ["-i", "output/temp_video.mp4", "-stream_loop", "-1", "-i", chosen_music,
+          "-stream_loop", "-1", "-i", chosen_overlay]
+
+sfx_labels = []
+sfx_filter_chain = ""
+for idx, cut_time in enumerate(cut_times):
+    chosen_sfx = os.path.join("sfx", random.choice(sfx_files))
+    inputs += ["-i", chosen_sfx]
+    input_index = 3 + idx
+    delay_ms = int(cut_time * 1000)
+    label = f"sfx{idx}"
+    sfx_labels.append(f"[{label}]")
+    sfx_filter_chain += f"[{input_index}:a]adelay={delay_ms}|{delay_ms},volume=0.5[{label}];"
+
+sfx_mix_inputs = "".join(sfx_labels)
+
+filter_complex = (
     "[2:v]scale=1080:1920,format=rgba,lumakey=threshold=0.15:tolerance=0.05:softness=0.1,colorchannelmixer=aa=0.5[overlay];"
     "[0:v][overlay]overlay[blended];"
     "[blended]ass=output/captions.ass[vout];"
-    "[1:a]volume=0.12[music];[0:a][music]amix=inputs=2:duration=first[aout]",
+    "[1:a]volume=0.12[music];"
+    f"{sfx_filter_chain}"
+    f"[0:a][music]{sfx_mix_inputs}amix=inputs={2 + len(cut_times)}:duration=first[aout]"
+)
+
+cmd = ["ffmpeg", "-y"] + inputs + [
+    "-filter_complex", filter_complex,
     "-map", "[vout]", "-map", "[aout]",
     "-t", str(total_duration),
     "-c:v", "libx264", "-c:a", "aac",
     "output/final_video.mp4"
-])
+]
+
+subprocess.run(cmd)
 
 os.remove("output/temp_video.mp4")
 
