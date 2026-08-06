@@ -104,9 +104,10 @@ else:
     video_filter = "[0:v]ass=output/captions.ass[vout];"
 
 audio_filter = (
+    "[0:a]volume=2.5[voice];"
     "[1:a]volume=0.12[music];"
     f"{sfx_filter_chain}"
-    f"[0:a][music]{sfx_mix_inputs}amix=inputs={2 + sfx_count}:duration=first[aout]"
+    f"[voice][music]{sfx_mix_inputs}amix=inputs={2 + sfx_count}:duration=first:normalize=0[aout]"
 )
 
 filter_complex = video_filter + audio_filter
