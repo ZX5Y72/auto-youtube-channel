@@ -1,5 +1,5 @@
 import json
-from moviepy import ImageClip, VideoFileClip, AudioFileClip, concatenate_videoclips
+from moviepy import ImageClip, VideoFileClip, AudioFileClip, CompositeVideoClip, concatenate_videoclips
 import os
 import subprocess
 import random
@@ -34,18 +34,40 @@ for i, filename in enumerate(scene_sources):
         clip = clip.cropped(x_center=clip.w / 2, width=1080)
     else:
         clip_path = os.path.join("output/images", filename)
-        clip = ImageClip(clip_path).with_duration(duration_per_scene)
-        if style == 0:
-            clip = clip.resized(lambda t: 1 + 0.15 * t)
-            clip = clip.with_position(lambda t: (-35 * t, "center"))
-        elif style == 1:
-            clip = clip.resized(lambda t: 1.25 - 0.15 * t)
-            clip = clip.with_position(lambda t: (35 * t, "center"))
-        elif style == 2:
-            clip = clip.resized(lambda t: 1 + 0.15 * t)
-            clip = clip.with_position(lambda t: ("center", -30 * t))
+        base = os.path.splitext(filename)[0]
+        fg_path = os.path.join("output/images_parallax", f"{base}_fg.png")
+        bg_path = os.path.join("output/images_parallax", f"{base}_bg.png")
+
+        if os.path.exists(fg_path) and os.path.exists(bg_path):
+            bg_clip = ImageClip(bg_path).with_duration(duration_per_scene)
+            bg_clip = bg_clip.resized(lambda t: 1 + 0.08 * t)
+
+            fg_clip = ImageClip(fg_path).with_duration(duration_per_scene)
+            fg_clip = fg_clip.resized(lambda t: 1 + 0.20 * t)
+
+            if style == 0:
+                fg_clip = fg_clip.with_position(lambda t: (-40 * t, "center"))
+            elif style == 1:
+                fg_clip = fg_clip.with_position(lambda t: (40 * t, "center"))
+            elif style == 2:
+                fg_clip = fg_clip.with_position(lambda t: ("center", -35 * t))
+            else:
+                fg_clip = fg_clip.with_position("center")
+
+            clip = CompositeVideoClip([bg_clip, fg_clip])
         else:
-            clip = clip.resized(lambda t: 1 + 0.10 * t)
+            clip = ImageClip(clip_path).with_duration(duration_per_scene)
+            if style == 0:
+                clip = clip.resized(lambda t: 1 + 0.15 * t)
+                clip = clip.with_position(lambda t: (-35 * t, "center"))
+            elif style == 1:
+                clip = clip.resized(lambda t: 1.25 - 0.15 * t)
+                clip = clip.with_position(lambda t: (35 * t, "center"))
+            elif style == 2:
+                clip = clip.resized(lambda t: 1 + 0.15 * t)
+                clip = clip.with_position(lambda t: ("center", -30 * t))
+            else:
+                clip = clip.resized(lambda t: 1 + 0.10 * t)
 
     clips.append(clip)
 
@@ -69,11 +91,6 @@ cut_times = [duration_per_scene * i for i in range(1, num_scenes)]
 inputs = ["-i", "output/temp_video.mp4", "-stream_loop", "-1", "-i", chosen_music]
 next_input_index = 2
 
-if has_overlay:
-    inputs += ["-stream_loop", "-1", "-i", chosen_overlay]
-    overlay_input_index = next_input_index
-    next_input_index += 1
-
 sfx_labels = []
 sfx_filter_chain = ""
 if sfx_files:
@@ -90,14 +107,7 @@ if sfx_files:
 sfx_mix_inputs = "".join(sfx_labels)
 sfx_count = len(sfx_labels)
 
-if has_overlay:
-    video_filter = (
-        f"[{overlay_input_index}:v]scale=1080:1920,format=rgba,lumakey=threshold=0.15:tolerance=0.05:softness=0.1,colorchannelmixer=aa=0.5[overlay];"
-        "[0:v][overlay]overlay[blended];"
-        "[blended]ass=output/captions.ass[vout];"
-    )
-else:
-    video_filter = "[0:v]ass=output/captions.ass[vout];"
+video_filter = "[0:v]ass=output/captions.ass[vout];"
 
 audio_filter = (
     "[0:a]volume=2.5[voice];"
