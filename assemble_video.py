@@ -59,11 +59,7 @@ video.write_videofile("output/temp_video.mp4", fps=30, codec="libx264", audio_co
 music_files = [f for f in os.listdir("music") if f.endswith(".mp3")]
 chosen_music = os.path.join("music", random.choice(music_files))
 
-overlay_dir = "output/overlays_fetched"
-overlay_files = [f for f in os.listdir(overlay_dir) if f.endswith((".mp4", ".m4v"))] if os.path.exists(overlay_dir) else []
-has_overlay = len(overlay_files) > 0
-if has_overlay:
-    chosen_overlay = os.path.join(overlay_dir, random.choice(overlay_files))
+has_overlay = False
 
 sfx_dir = "output/sfx"
 sfx_files = [f for f in os.listdir(sfx_dir) if f.endswith((".mp3", ".wav"))] if os.path.exists(sfx_dir) else []
