@@ -40,9 +40,13 @@ for i, filename in enumerate(scene_sources):
 
         if os.path.exists(fg_path) and os.path.exists(bg_path):
             bg_clip = ImageClip(bg_path).with_duration(duration_per_scene)
+            bg_clip = bg_clip.resized(height=1920)
+            bg_clip = bg_clip.cropped(x_center=bg_clip.w / 2, width=1080)
             bg_clip = bg_clip.resized(lambda t: 1 + 0.08 * t)
 
             fg_clip = ImageClip(fg_path).with_duration(duration_per_scene)
+            fg_clip = fg_clip.resized(height=1920)
+            fg_clip = fg_clip.cropped(x_center=fg_clip.w / 2, width=1080)
             fg_clip = fg_clip.resized(lambda t: 1 + 0.20 * t)
 
             if style == 0:
@@ -54,7 +58,7 @@ for i, filename in enumerate(scene_sources):
             else:
                 fg_clip = fg_clip.with_position("center")
 
-            clip = CompositeVideoClip([bg_clip, fg_clip])
+            clip = CompositeVideoClip([bg_clip, fg_clip], size=(1080, 1920))
         else:
             clip = ImageClip(clip_path).with_duration(duration_per_scene)
             if style == 0:
