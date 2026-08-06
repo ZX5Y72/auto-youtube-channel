@@ -13,27 +13,44 @@ audio = AudioFileClip("output/voiceover.mp3")
 total_duration = audio.duration
 
 image_files = sorted(os.listdir("output/images"))
-num_images = len(image_files)
-duration_per_image = total_duration / num_images
+num_images = num_scenes
+duration_per_image = duration_per_scene
+from moviepy import VideoFileClip
 
 clips = []
-for i, img_file in enumerate(image_files):
-    img_path = os.path.join("output/images", img_file)
-    clip = ImageClip(img_path).with_duration(duration_per_image)
 
+# Load any B-roll clips we fetched
+broll_dir = "output/broll"
+broll_files = sorted(os.listdir(broll_dir)) if os.path.exists(broll_dir) else []
+
+scene_sources = list(image_files) + list(broll_files)
+random.shuffle(scene_sources)  # mix broll and AI images unpredictably
+
+num_scenes = len(scene_sources)
+duration_per_scene = total_duration / num_scenes
+
+for i, filename in enumerate(scene_sources):
     style = i % 4
 
-    if style == 0:
-        clip = clip.resized(lambda t: 1 + 0.15 * t)
-        clip = clip.with_position(lambda t: (-35 * t, "center"))
-    elif style == 1:
-        clip = clip.resized(lambda t: 1.25 - 0.15 * t)
-        clip = clip.with_position(lambda t: (35 * t, "center"))
-    elif style == 2:
-        clip = clip.resized(lambda t: 1 + 0.15 * t)
-        clip = clip.with_position(lambda t: ("center", -30 * t))
+    if filename in broll_files:
+        clip_path = os.path.join(broll_dir, filename)
+        clip = VideoFileClip(clip_path).with_duration(duration_per_scene)
+        clip = clip.resized(height=1920)
+        clip = clip.cropped(x_center=clip.w / 2, width=1080)
     else:
-        clip = clip.resized(lambda t: 1 + 0.10 * t)
+        clip_path = os.path.join("output/images", filename)
+        clip = ImageClip(clip_path).with_duration(duration_per_scene)
+        if style == 0:
+            clip = clip.resized(lambda t: 1 + 0.15 * t)
+            clip = clip.with_position(lambda t: (-35 * t, "center"))
+        elif style == 1:
+            clip = clip.resized(lambda t: 1.25 - 0.15 * t)
+            clip = clip.with_position(lambda t: (35 * t, "center"))
+        elif style == 2:
+            clip = clip.resized(lambda t: 1 + 0.15 * t)
+            clip = clip.with_position(lambda t: ("center", -30 * t))
+        else:
+            clip = clip.resized(lambda t: 1 + 0.10 * t)
 
     clips.append(clip)
 
