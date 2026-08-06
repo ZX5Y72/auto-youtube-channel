@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import requests
 
 with open("output/content.json", "r") as f:
@@ -8,24 +9,41 @@ with open("output/content.json", "r") as f:
 os.makedirs("output/broll", exist_ok=True)
 
 API_KEY = os.environ["PIXABAY_API_KEY"]
-query = data["civilization"]
 
-url = "https://pixabay.com/api/videos/"
-params = {
-    "key": API_KEY,
-    "q": query,
-    "video_type": "film",
-    "per_page": 6,
-    "safesearch": "true",
-}
+def clean_query(text):
+    # Strip parentheticals and non-letter characters, keep it simple
+    text = re.sub(r"\(.*?\)", "", text)
+    text = re.sub(r"[^a-zA-Z\s]", "", text)
+    return text.strip()
 
-response = requests.get(url, params=params, timeout=30)
-results = response.json()
+def search_pixabay(query):
+    url = "https://pixabay.com/api/videos/"
+    params = {
+        "key": API_KEY,
+        "q": query,
+        "video_type": "film",
+        "per_page": 6,
+        "safesearch": "true",
+        "order": "popular",
+    }
+    response = requests.get(url, params=params, timeout=30)
+    return response.json().get("hits", [])
 
-hits = results.get("hits", [])
-print(f"Found {len(hits)} clips for '{query}'")
+primary_query = clean_query(data["civilization"])
+hits = search_pixabay(primary_query)
+print(f"Searched '{primary_query}': {len(hits)} results")
 
-# Grab up to 2 clips, medium quality (keeps file size reasonable)
+# Fallback: try just the first word (e.g. "Achaemenid Empire" -> "Achaemenid"), then a generic term
+if not hits:
+    first_word = primary_query.split()[0] if primary_query else ""
+    if first_word:
+        hits = search_pixabay(first_word)
+        print(f"Fallback search '{first_word}': {len(hits)} results")
+
+if not hits:
+    hits = search_pixabay("ancient ruins")
+    print(f"Fallback search 'ancient ruins': {len(hits)} results")
+
 downloaded = 0
 for hit in hits[:2]:
     video_url = hit["videos"]["medium"]["url"]
