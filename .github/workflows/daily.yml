@@ -36,6 +36,9 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: python generate_images.py
 
+      - name: Generate parallax layers
+        run: python generate_parallax.py
+
       - name: Fetch B-roll footage
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
