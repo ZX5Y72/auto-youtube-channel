@@ -46,3 +46,32 @@ jobs:
 
       - name: Fetch sound effects
         env:
+          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+        run: python fetch_sfx.py
+
+      - name: Generate voiceover
+        run: python generate_voiceover.py
+
+      - name: Generate captions
+        run: python generate_captions.py
+
+      - name: Assemble video
+        run: python assemble_video.py
+
+      - name: Generate thumbnail
+        run: python generate_thumbnail.py
+
+      - name: Upload to YouTube
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python upload_video.py
+
+      - name: Save topic history back to repo
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add topic_history.json
+          git commit -m "Update topic history" || echo "No changes to commit"
+          git push
