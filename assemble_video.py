@@ -1,5 +1,5 @@
 import json
-from moviepy import ImageClip, VideoFileClip, AudioFileClip, CompositeVideoClip, concatenate_videoclips
+from moviepy import ImageClip, VideoFileClip, AudioFileClip, CompositeVideoClip, TextClip, concatenate_videoclips
 import os
 import subprocess
 import random
@@ -11,6 +11,16 @@ with open("output/content.json", "r") as f:
 
 audio = AudioFileClip("output/voiceover.mp3")
 total_duration = audio.duration
+
+hook_clip = TextClip(
+    text=data.get("hook_text", "").upper(),
+    font_size=100,
+    color="yellow",
+    stroke_color="black",
+    stroke_width=6,
+    size=(1000, None),
+    method="caption",
+).with_duration(0.6).with_position("center")
 
 image_files = sorted(os.listdir("output/images"))
 
@@ -75,7 +85,8 @@ for i, filename in enumerate(scene_sources):
 
     clips.append(clip)
 
-video = concatenate_videoclips(clips, method="compose")
+main_video = concatenate_videoclips(clips, method="compose")
+video = CompositeVideoClip([main_video, hook_clip])
 video = video.with_audio(audio)
 video = video.resized(height=1920)
 video = video.cropped(x_center=video.w / 2, width=1080)
