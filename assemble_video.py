@@ -59,37 +59,57 @@ video.write_videofile("output/temp_video.mp4", fps=30, codec="libx264", audio_co
 music_files = [f for f in os.listdir("music") if f.endswith(".mp3")]
 chosen_music = os.path.join("music", random.choice(music_files))
 
-overlay_files = [f for f in os.listdir("overlays") if f.endswith((".mp4", ".m4v"))]
-chosen_overlay = os.path.join("overlays", random.choice(overlay_files))
+overlay_dir = "output/overlays_fetched"
+overlay_files = [f for f in os.listdir(overlay_dir) if f.endswith((".mp4", ".m4v"))] if os.path.exists(overlay_dir) else []
+has_overlay = len(overlay_files) > 0
+if has_overlay:
+    chosen_overlay = os.path.join(overlay_dir, random.choice(overlay_files))
 
-sfx_files = [f for f in os.listdir("sfx") if f.endswith((".mp3", ".wav"))]
+sfx_dir = "output/sfx"
+sfx_files = [f for f in os.listdir(sfx_dir) if f.endswith((".mp3", ".wav"))] if os.path.exists(sfx_dir) else []
 
 cut_times = [duration_per_scene * i for i in range(1, num_scenes)]
 
-inputs = ["-i", "output/temp_video.mp4", "-stream_loop", "-1", "-i", chosen_music,
-          "-stream_loop", "-1", "-i", chosen_overlay]
+inputs = ["-i", "output/temp_video.mp4", "-stream_loop", "-1", "-i", chosen_music]
+next_input_index = 2
+
+if has_overlay:
+    inputs += ["-stream_loop", "-1", "-i", chosen_overlay]
+    overlay_input_index = next_input_index
+    next_input_index += 1
 
 sfx_labels = []
 sfx_filter_chain = ""
-for idx, cut_time in enumerate(cut_times):
-    chosen_sfx = os.path.join("sfx", random.choice(sfx_files))
-    inputs += ["-i", chosen_sfx]
-    input_index = 3 + idx
-    delay_ms = int(cut_time * 1000)
-    label = f"sfx{idx}"
-    sfx_labels.append(f"[{label}]")
-    sfx_filter_chain += f"[{input_index}:a]adelay={delay_ms}|{delay_ms},volume=0.5[{label}];"
+if sfx_files:
+    for idx, cut_time in enumerate(cut_times):
+        chosen_sfx = os.path.join(sfx_dir, random.choice(sfx_files))
+        inputs += ["-i", chosen_sfx]
+        input_index = next_input_index
+        next_input_index += 1
+        delay_ms = int(cut_time * 1000)
+        label = f"sfx{idx}"
+        sfx_labels.append(f"[{label}]")
+        sfx_filter_chain += f"[{input_index}:a]adelay={delay_ms}|{delay_ms},volume=0.5[{label}];"
 
 sfx_mix_inputs = "".join(sfx_labels)
+sfx_count = len(sfx_labels)
 
-filter_complex = (
-    "[2:v]scale=1080:1920,format=rgba,lumakey=threshold=0.15:tolerance=0.05:softness=0.1,colorchannelmixer=aa=0.5[overlay];"
-    "[0:v][overlay]overlay[blended];"
-    "[blended]ass=output/captions.ass[vout];"
+if has_overlay:
+    video_filter = (
+        f"[{overlay_input_index}:v]scale=1080:1920,format=rgba,lumakey=threshold=0.15:tolerance=0.05:softness=0.1,colorchannelmixer=aa=0.5[overlay];"
+        "[0:v][overlay]overlay[blended];"
+        "[blended]ass=output/captions.ass[vout];"
+    )
+else:
+    video_filter = "[0:v]ass=output/captions.ass[vout];"
+
+audio_filter = (
     "[1:a]volume=0.12[music];"
     f"{sfx_filter_chain}"
-    f"[0:a][music]{sfx_mix_inputs}amix=inputs={2 + len(cut_times)}:duration=first[aout]"
+    f"[0:a][music]{sfx_mix_inputs}amix=inputs={2 + sfx_count}:duration=first[aout]"
 )
+
+filter_complex = video_filter + audio_filter
 
 cmd = ["ffmpeg", "-y"] + inputs + [
     "-filter_complex", filter_complex,
