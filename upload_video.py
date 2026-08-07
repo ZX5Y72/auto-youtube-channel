@@ -44,7 +44,9 @@ request = youtube.videos().insert(
 response = request.execute()
 video_id = response["id"]
 print(f"Uploaded! https://youtube.com/watch?v={video_id}")
-
+with open("output/upload_result.json", "w") as f:
+    json.dump({"url": f"https://youtube.com/watch?v={video_id}", "video_id": video_id}, f)
+    
 # Try to set a custom thumbnail — won't break the upload if it fails
 try:
     youtube.thumbnails().set(
