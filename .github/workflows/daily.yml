@@ -54,6 +54,9 @@ jobs:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         run: python generate_voiceover.py
 
+      - name: Trim silence
+        run: python trim_silence.py
+
       - name: Generate captions
         run: python generate_captions.py
 
