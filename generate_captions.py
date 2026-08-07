@@ -5,7 +5,7 @@ import os
 os.makedirs("output", exist_ok=True)
 
 model = whisper.load_model("base")
-result = model.transcribe("output/voiceover.mp3", word_timestamps=True)
+result = model.transcribe("output/voiceover_trimmed.mp3", word_timestamps=True)
 
 def format_ass_time(seconds):
     hrs = int(seconds // 3600)
