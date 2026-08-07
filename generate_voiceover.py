@@ -11,16 +11,34 @@ with open("output/content.json", "r") as f:
 
 script = data["script"]
 
+def get_available_voice_id(api_key):
+    url = "https://api.elevenlabs.io/v1/voices"
+    headers = {"xi-api-key": api_key}
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        if response.status_code != 200:
+            return None
+        voices = response.json().get("voices", [])
+        for v in voices:
+            if v.get("category") in ("premade", "cloned", "generated_by_user"):
+                return v["voice_id"]
+        return voices[0]["voice_id"] if voices else None
+    except Exception as e:
+        print(f"Voice list fetch failed: {e}")
+        return None
+
 def try_elevenlabs(text, path):
     API_KEY = os.environ.get("ELEVENLABS_API_KEY")
     if not API_KEY:
         print("No ElevenLabs key found, skipping.")
         return False
 
-    # Rachel - a natural, versatile narration voice on the free tier
-    VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
+    voice_id = get_available_voice_id(API_KEY)
+    if not voice_id:
+        print("No usable ElevenLabs voice found on this account.")
+        return False
 
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     headers = {
         "xi-api-key": API_KEY,
         "Content-Type": "application/json",
