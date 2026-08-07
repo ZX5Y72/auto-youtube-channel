@@ -18,24 +18,6 @@ else:
 recent_topics = history[-30:]
 avoid_list = "\n".join(f"- {t}" for t in recent_topics) if recent_topics else "None yet"
 
-performance_context = ""
-if os.path.exists("video_performance.json"):
-    with open("video_performance.json", "r") as f:
-        perf_data = json.load(f)
-    if perf_data:
-        top_performers = perf_data[:5]
-        performance_lines = "\n".join(
-            f"- \"{v['title']}\" ({v['views']} views, {v['avg_view_percentage']:.0f}% avg watched)"
-            for v in top_performers
-        )
-        performance_context = (
-            "\n\nHere is how your recent videos have performed (best performing first):\n"
-            + performance_lines +
-            "\n\nUse this to inform your topic choice: if certain civilizations, angles, or story types "
-            "appear among the top performers, lean toward similar territory (without repeating the "
-            "exact same topic). If there's no clear pattern yet, just pick a strong topic as usual.\n"
-        )
-
 TOPIC_PROMPT = f"""
 You create scripts for a YouTube Shorts channel about ancient history and civilizations
 (e.g. Ancient Egypt, Rome, Greece, Mesopotamia, the Maya, etc).
@@ -45,7 +27,6 @@ that hasn't gotten overused/clickbaited-to-death. Prefer specific, verifiable de
 
 IMPORTANT: Do NOT repeat or closely resemble any of these already-used topics:
 {avoid_list}
-{performance_context}
 
 Generate a single JSON object with these exact keys:
 
