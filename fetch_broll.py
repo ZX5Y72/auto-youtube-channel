@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 import requests
 
 with open("output/content.json", "r") as f:
@@ -11,12 +12,11 @@ os.makedirs("output/broll", exist_ok=True)
 API_KEY = os.environ["PIXABAY_API_KEY"]
 
 def clean_query(text):
-    # Strip parentheticals and non-letter characters, keep it simple
     text = re.sub(r"\(.*?\)", "", text)
     text = re.sub(r"[^a-zA-Z\s]", "", text)
     return text.strip()
 
-def search_pixabay(query):
+def search_pixabay(query, retries=3):
     url = "https://pixabay.com/api/videos/"
     params = {
         "key": API_KEY,
@@ -26,14 +26,19 @@ def search_pixabay(query):
         "safesearch": "true",
         "order": "popular",
     }
-    response = requests.get(url, params=params, timeout=30)
-    return response.json().get("hits", [])
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, params=params, timeout=60)
+            return response.json().get("hits", [])
+        except Exception as e:
+            print(f"  Search attempt {attempt+1} failed: {e}")
+            time.sleep(10)
+    return []
 
 primary_query = clean_query(data["civilization"])
 hits = search_pixabay(primary_query)
 print(f"Searched '{primary_query}': {len(hits)} results")
 
-# Fallback: try just the first word (e.g. "Achaemenid Empire" -> "Achaemenid"), then a generic term
 if not hits:
     first_word = primary_query.split()[0] if primary_query else ""
     if first_word:
@@ -46,12 +51,15 @@ if not hits:
 
 downloaded = 0
 for hit in hits[:2]:
-    video_url = hit["videos"]["medium"]["url"]
-    clip_path = f"output/broll/clip_{downloaded+1}.mp4"
-    video_data = requests.get(video_url, timeout=60)
-    with open(clip_path, "wb") as f:
-        f.write(video_data.content)
-    downloaded += 1
-    print(f"Downloaded {clip_path}")
+    try:
+        video_url = hit["videos"]["medium"]["url"]
+        clip_path = f"output/broll/clip_{downloaded+1}.mp4"
+        video_data = requests.get(video_url, timeout=90)
+        with open(clip_path, "wb") as f:
+            f.write(video_data.content)
+        downloaded += 1
+        print(f"Downloaded {clip_path}")
+    except Exception as e:
+        print(f"  Download failed for a clip: {e}")
 
 print(f"B-roll fetch complete: {downloaded} clips")
