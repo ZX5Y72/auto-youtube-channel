@@ -2,6 +2,7 @@ import json
 import asyncio
 import edge_tts
 import os
+import requests
 
 os.makedirs("output", exist_ok=True)
 
@@ -10,12 +11,15 @@ with open("output/content.json", "r") as f:
 
 script = data["script"]
 
-# Good, natural-sounding free voice. You can browse more with `edge-tts --list-voices`
-VOICE = "en-US-GuyNeural"
+def try_elevenlabs(text, path):
+    API_KEY = os.environ.get("ELEVENLABS_API_KEY")
+    if not API_KEY:
+        print("No ElevenLabs key found, skipping.")
+        return False
 
-async def main():
-    communicate = edge_tts.Communicate(script, VOICE)
-    await communicate.save("output/voiceover.mp3")
-    print("Voiceover saved to output/voiceover.mp3")
+    # Rachel - a natural, versatile narration voice on the free tier
+    VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
 
-asyncio.run(main())
+    headers = {
+        "xi-api-key": API_KEY,
