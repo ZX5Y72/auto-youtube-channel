@@ -9,7 +9,7 @@ os.makedirs("output", exist_ok=True)
 with open("output/content.json", "r") as f:
     data = json.load(f)
 
-audio = AudioFileClip("output/voiceover_trimmed.mp3")
+audio = AudioFileClip("output/voiceover.mp3")
 total_duration = audio.duration
 
 hook_clip = TextClip(
@@ -96,8 +96,6 @@ video.write_videofile("output/temp_video.mp4", fps=30, codec="libx264", audio_co
 music_files = [f for f in os.listdir("music") if f.endswith(".mp3")]
 chosen_music = os.path.join("music", random.choice(music_files))
 
-has_overlay = False
-
 sfx_dir = "output/sfx"
 sfx_files = [f for f in os.listdir(sfx_dir) if f.endswith((".mp3", ".wav"))] if os.path.exists(sfx_dir) else []
 
@@ -124,7 +122,7 @@ sfx_count = len(sfx_labels)
 
 video_filter = (
     "[0:v]ass=output/captions.ass[captioned];"
-    "[captioned][3:v]overlay=x=main_w-overlay_w-30:y=40[vout];"
+    "[captioned][2:v]overlay=x=main_w-overlay_w-30:y=40[vout];"
 )
 
 audio_filter = (
