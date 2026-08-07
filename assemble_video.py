@@ -103,8 +103,8 @@ sfx_files = [f for f in os.listdir(sfx_dir) if f.endswith((".mp3", ".wav"))] if 
 
 cut_times = [duration_per_scene * i for i in range(1, num_scenes)]
 
-inputs = ["-i", "output/temp_video.mp4", "-stream_loop", "-1", "-i", chosen_music]
-next_input_index = 2
+inputs = ["-i", "output/temp_video.mp4", "-stream_loop", "-1", "-i", chosen_music, "-i", "branding/watermark.png"]
+next_input_index = 3
 
 sfx_labels = []
 sfx_filter_chain = ""
@@ -122,7 +122,10 @@ if sfx_files:
 sfx_mix_inputs = "".join(sfx_labels)
 sfx_count = len(sfx_labels)
 
-video_filter = "[0:v]ass=output/captions.ass[vout];"
+video_filter = (
+    "[0:v]ass=output/captions.ass[captioned];"
+    "[captioned][3:v]overlay=x=main_w-overlay_w-30:y=40[vout];"
+)
 
 audio_filter = (
     "[0:a]volume=2.5[voice];"
