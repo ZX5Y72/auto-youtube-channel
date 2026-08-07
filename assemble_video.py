@@ -9,7 +9,7 @@ os.makedirs("output", exist_ok=True)
 with open("output/content.json", "r") as f:
     data = json.load(f)
 
-audio = AudioFileClip("output/voiceover.mp3")
+audio = AudioFileClip("output/voiceover_trimmed.mp3")
 total_duration = audio.duration
 
 hook_clip = TextClip(
