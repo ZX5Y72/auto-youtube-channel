@@ -19,6 +19,7 @@ def get_available_voice_id(api_key):
         if response.status_code != 200:
             return None
         voices = response.json().get("voices", [])
+        print(f"Account has {len(voices)} voices, categories: {[v.get('category') for v in voices]}")
         for v in voices:
             if v.get("category") in ("premade", "cloned", "generated_by_user"):
                 return v["voice_id"]
