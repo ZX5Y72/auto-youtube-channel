@@ -138,6 +138,11 @@ cmd = ["ffmpeg", "-y"] + inputs + [
     "output/final_video.mp4"
 ]
 
-subprocess.run(cmd)
+result = subprocess.run(cmd, capture_output=True, text=True)
+if result.returncode != 0:
+    print("FFMPEG STDERR:")
+    print(result.stderr[-3000:])
+    raise RuntimeError("ffmpeg failed to assemble the video.")
+
 os.remove("output/temp_video.mp4")
 print("Video assembled: output/final_video.mp4")
