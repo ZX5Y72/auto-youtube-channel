@@ -19,12 +19,8 @@ def clean_query(text):
 def search_pixabay(query, retries=3):
     url = "https://pixabay.com/api/videos/"
     params = {
-        "key": API_KEY,
-        "q": query,
-        "video_type": "film",
-        "per_page": 6,
-        "safesearch": "true",
-        "order": "popular",
+        "key": API_KEY, "q": query, "video_type": "film",
+        "per_page": 6, "safesearch": "true", "order": "popular",
     }
     for attempt in range(retries):
         try:
@@ -35,19 +31,26 @@ def search_pixabay(query, retries=3):
             time.sleep(10)
     return []
 
-primary_query = clean_query(data["civilization"])
-hits = search_pixabay(primary_query)
-print(f"Searched '{primary_query}': {len(hits)} results")
+civilization_q = clean_query(data["civilization"])
+topic_words = clean_query(data.get("topic", "")).split()
+topic_q = " ".join(topic_words[:3])
+
+hits = search_pixabay(f"{civilization_q} {topic_q}".strip())
+print(f"Searched '{civilization_q} {topic_q}': {len(hits)} results")
 
 if not hits:
-    first_word = primary_query.split()[0] if primary_query else ""
+    hits = search_pixabay(civilization_q)
+    print(f"Fallback '{civilization_q}': {len(hits)} results")
+
+if not hits:
+    first_word = civilization_q.split()[0] if civilization_q else ""
     if first_word:
         hits = search_pixabay(first_word)
-        print(f"Fallback search '{first_word}': {len(hits)} results")
+        print(f"Fallback '{first_word}': {len(hits)} results")
 
 if not hits:
     hits = search_pixabay("ancient ruins")
-    print(f"Fallback search 'ancient ruins': {len(hits)} results")
+    print(f"Fallback 'ancient ruins': {len(hits)} results")
 
 downloaded = 0
 for hit in hits[:2]:
@@ -60,6 +63,6 @@ for hit in hits[:2]:
         downloaded += 1
         print(f"Downloaded {clip_path}")
     except Exception as e:
-        print(f"  Download failed for a clip: {e}")
+        print(f"  Download failed: {e}")
 
 print(f"B-roll fetch complete: {downloaded} clips")
