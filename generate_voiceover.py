@@ -3,6 +3,7 @@ import asyncio
 import edge_tts
 import os
 import requests
+import random
 
 os.makedirs("output", exist_ok=True)
 
@@ -19,7 +20,6 @@ def get_available_voice_id(api_key):
         if response.status_code != 200:
             return None
         voices = response.json().get("voices", [])
-        print(f"Account has {len(voices)} voices, categories: {[v.get('category') for v in voices]}")
         for v in voices:
             if v.get("category") in ("premade", "cloned", "generated_by_user"):
                 return v["voice_id"]
@@ -33,23 +33,16 @@ def try_elevenlabs(text, path):
     if not API_KEY:
         print("No ElevenLabs key found, skipping.")
         return False
-
     voice_id = get_available_voice_id(API_KEY)
     if not voice_id:
         print("No usable ElevenLabs voice found on this account.")
         return False
-
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-    headers = {
-        "xi-api-key": API_KEY,
-        "Content-Type": "application/json",
-    }
+    headers = {"xi-api-key": API_KEY, "Content-Type": "application/json"}
     payload = {
-        "text": text,
-        "model_id": "eleven_multilingual_v2",
+        "text": text, "model_id": "eleven_multilingual_v2",
         "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
     }
-
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=60)
         if response.status_code == 200:
@@ -65,12 +58,15 @@ def try_elevenlabs(text, path):
 
 def use_edge_tts(text, path):
     VOICE = "en-US-GuyNeural"
+    rate = random.choice(["-5%", "+0%", "+5%", "+8%"])
+    pitch = random.choice(["-3Hz", "+0Hz", "+3Hz"])
 
     async def generate():
-        communicate = edge_tts.Communicate(text, VOICE)
+        communicate = edge_tts.Communicate(text, VOICE, rate=rate, pitch=pitch)
         await communicate.save(path)
 
     asyncio.run(generate())
+    print(f"edge-tts used rate={rate}, pitch={pitch}")
 
 output_path = "output/voiceover.mp3"
 
