@@ -1,11 +1,27 @@
 import json
 import os
+import subprocess
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 with open("output/content.json", "r") as f:
     data = json.load(f)
+
+# --- Duration sanity check ---
+probe = subprocess.run(
+    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrapper=1:nokey=1", "output/final_video.mp4"],
+    capture_output=True, text=True
+)
+try:
+    duration = float(probe.stdout.strip())
+except ValueError:
+    duration = 0
+
+if duration < 15 or duration > 180:
+    raise RuntimeError(f"Final video duration ({duration:.1f}s) is outside sane bounds, aborting upload.")
+
+print(f"Duration check passed: {duration:.1f}s")
 
 creds = Credentials(
     token=None,
@@ -18,7 +34,9 @@ creds = Credentials(
 youtube = build("youtube", "v3", credentials=creds)
 
 hashtags = " ".join(f"#{tag}" for tag in data["hashtags"])
-description = f"{data['description']}\n\n{hashtags}"
+transcript_note = f"\n\nFull transcript:\n{data['script']}"
+engagement_note = "\n\nWhich civilization should I cover next? Let me know in the comments!"
+description = f"{data['description']}{engagement_note}\n\n{hashtags}{transcript_note}"
 
 request_body = {
     "snippet": {
@@ -34,13 +52,7 @@ request_body = {
 }
 
 media = MediaFileUpload("output/final_video.mp4", chunksize=-1, resumable=True)
-
-request = youtube.videos().insert(
-    part="snippet,status",
-    body=request_body,
-    media_body=media,
-)
-
+request = youtube.videos().insert(part="snippet,status", body=request_body, media_body=media)
 response = request.execute()
 video_id = response["id"]
 print(f"Uploaded! https://youtube.com/watch?v={video_id}")
@@ -62,7 +74,6 @@ def get_or_create_playlist(youtube, civilization_name):
     for pl in playlists.get("items", []):
         if pl["snippet"]["title"].lower() == civilization_name.lower():
             return pl["id"]
-
     new_playlist = youtube.playlists().insert(
         part="snippet,status",
         body={
@@ -76,13 +87,25 @@ try:
     playlist_id = get_or_create_playlist(youtube, data["civilization"])
     youtube.playlistItems().insert(
         part="snippet",
-        body={
-            "snippet": {
-                "playlistId": playlist_id,
-                "resourceId": {"kind": "youtube#video", "videoId": video_id},
-            }
-        },
+        body={"snippet": {"playlistId": playlist_id, "resourceId": {"kind": "youtube#video", "videoId": video_id}}},
     ).execute()
     print(f"Added to playlist: {data['civilization']}")
 except Exception as e:
     print(f"Playlist step failed (non-critical): {e}")
+
+# --- Auto comment (not pinned - YouTube API doesn't support pinning) ---
+try:
+    youtube.commentThreads().insert(
+        part="snippet",
+        body={
+            "snippet": {
+                "videoId": video_id,
+                "topLevelComment": {
+                    "snippet": {"textOriginal": "Subscribe for a new ancient history fact every day! 🏛️"}
+                },
+            }
+        },
+    ).execute()
+    print("Comment posted.")
+except Exception as e:
+    print(f"Auto-comment failed (non-critical): {e}")
