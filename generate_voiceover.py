@@ -60,13 +60,28 @@ def use_edge_tts(text, path):
     VOICE = "en-US-GuyNeural"
     rate = random.choice(["-5%", "+0%", "+5%", "+8%"])
     pitch = random.choice(["-3Hz", "+0Hz", "+3Hz"])
+    word_timings = []
 
     async def generate():
         communicate = edge_tts.Communicate(text, VOICE, rate=rate, pitch=pitch)
-        await communicate.save(path)
+        with open(path, "wb") as audio_file:
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_file.write(chunk["data"])
+                elif chunk["type"] == "WordBoundary":
+                    word_timings.append({
+                        "text": chunk["text"],
+                        "start": chunk["offset"] / 10_000_000,
+                        "end": (chunk["offset"] + chunk["duration"]) / 10_000_000,
+                    })
 
     asyncio.run(generate())
-    print(f"edge-tts used rate={rate}, pitch={pitch}")
+
+    if word_timings:
+        with open("output/edge_tts_words.json", "w") as f:
+            json.dump(word_timings, f)
+
+    print(f"edge-tts used rate={rate}, pitch={pitch}, captured {len(word_timings)} word timings")
 
 output_path = "output/voiceover.mp3"
 
