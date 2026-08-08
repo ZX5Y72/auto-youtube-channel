@@ -1,6 +1,7 @@
 import whisper
 import json
 import os
+import random
 
 os.makedirs("output", exist_ok=True)
 
@@ -13,32 +14,54 @@ def format_ass_time(seconds):
     secs = seconds % 60
     return f"{hrs:01}:{mins:02}:{secs:05.2f}"
 
-ass_header = """[Script Info]
+def format_srt_time(seconds):
+    hrs = int(seconds // 3600)
+    mins = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    ms = int((seconds % 1) * 1000)
+    return f"{hrs:02}:{mins:02}:{secs:02},{ms:03}"
+
+COLOR_STYLES = [
+    "&H0000FFFF",  # yellow
+    "&H00FFFFFF",  # white
+    "&H00FFFF00",  # cyan
+]
+chosen_color = random.choice(COLOR_STYLES)
+
+ass_header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
 PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,90,&H0000FFFF,&H0000FFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,4,0,5,10,10,10,1
+Style: Default,Arial Black,90,{chosen_color},{chosen_color},&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,4,0,5,10,10,10,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
 lines = [ass_header]
-
 for segment in result["segments"]:
-    words = segment.get("words", [])
-    for w in words:
+    for w in segment.get("words", []):
         start = format_ass_time(w["start"])
         end = format_ass_time(w["end"])
         text = w["word"].strip().upper()
-        # Highlight the active word in yellow, rest hidden (word-by-word pop-in)
         line = f"Dialogue: 0,{start},{end},Default,,0,0,0,,{{\\fscx120\\fscy120}}{text}"
         lines.append(line)
 
 with open("output/captions.ass", "w") as f:
     f.write("\n".join(lines))
 
-print("Word-by-word captions saved to output/captions.ass")
+# Sentence-level English SRT, for translation use
+srt_lines = []
+for i, segment in enumerate(result["segments"], start=1):
+    start = format_srt_time(segment["start"])
+    end = format_srt_time(segment["end"])
+    text = segment["text"].strip()
+    srt_lines.append(f"{i}\n{start} --> {end}\n{text}\n")
+
+with open("output/captions_en.srt", "w") as f:
+    f.write("\n".join(srt_lines))
+
+print(f"Word-by-word captions saved (color: {chosen_color}). English SRT also saved for translation.")
