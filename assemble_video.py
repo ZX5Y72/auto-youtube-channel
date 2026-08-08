@@ -9,21 +9,16 @@ os.makedirs("output", exist_ok=True)
 with open("output/content.json", "r") as f:
     data = json.load(f)
 
-audio = AudioFileClip("output/voiceover.mp3")
+audio = AudioFileClip("output/voiceover_trimmed.mp3")
 total_duration = audio.duration
 
 hook_clip = TextClip(
     text=data.get("hook_text", "").upper(),
-    font_size=100,
-    color="yellow",
-    stroke_color="black",
-    stroke_width=6,
-    size=(1000, None),
-    method="caption",
+    font_size=100, color="yellow", stroke_color="black", stroke_width=6,
+    size=(1000, None), method="caption",
 ).with_duration(0.6).with_position("center")
 
 image_files = sorted(os.listdir("output/images"))
-
 broll_dir = "output/broll"
 broll_files = sorted(os.listdir(broll_dir)) if os.path.exists(broll_dir) else []
 
@@ -121,7 +116,8 @@ sfx_mix_inputs = "".join(sfx_labels)
 sfx_count = len(sfx_labels)
 
 video_filter = (
-    "[0:v]ass=output/captions.ass[captioned];"
+    "[0:v]eq=contrast=1.15:saturation=1.2:gamma=0.95,vignette=PI/6[graded];"
+    "[graded]ass=output/captions.ass[captioned];"
     "[captioned][2:v]overlay=x=main_w-overlay_w-30:y=40[vout];"
 )
 
@@ -143,7 +139,5 @@ cmd = ["ffmpeg", "-y"] + inputs + [
 ]
 
 subprocess.run(cmd)
-
 os.remove("output/temp_video.mp4")
-
 print("Video assembled: output/final_video.mp4")
