@@ -17,7 +17,8 @@ creds = Credentials(
 
 youtube = build("youtube", "v3", credentials=creds)
 
-hashtags = " ".join(f"#{tag}" for tag in meta.get("hashtags", []))
+gemini_hashtags = [t for t in meta.get("hashtags", []) if t.lower() != "shorts"]
+hashtags = "#Shorts " + " ".join(f"#{tag}" for tag in gemini_hashtags)
 description = (
     f"{meta['description']}\n\n"
     f"🎬 Original creator: {meta['creator_handle']}\n"
