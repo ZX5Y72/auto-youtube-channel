@@ -10,15 +10,56 @@ VIDEO_PATH = "output/source_video.mp4"
 
 print("Transcribing source video (this may take a while for long videos)...")
 model = whisper.load_model("base")
-result = model.transcribe(VIDEO_PATH, word_timestamps=True, verbose=False)
+result = model.transcribe(VIDEO_PATH, word_timestamps=True, verbose=False, language="en")
 
 all_words = []
 for seg in result["segments"]:
     for w in seg.get("words", []):
         all_words.append({"index": len(all_words), "text": w["word"].strip(), "start": w["start"], "end": w["end"]})
 
-video_duration = all_words[-1]["end"] if all_words else 0
+probe = subprocess.run(
+    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrapper=1:nokey=1", VIDEO_PATH],
+    capture_output=True, text=True
+)
+try:
+    actual_duration = float(probe.stdout.strip())
+except ValueError:
+    actual_duration = all_words[-1]["end"] if all_words else 60
+
+video_duration = actual_duration
 print(f"Video duration: {video_duration:.1f}s, total words: {len(all_words)}")
+
+if len(all_words) < 5:
+    print("Very little or no speech detected - using a simple fallback clip instead of AI selection.")
+    start = 0
+    end = min(60, video_duration)
+    reason = "No clear speech detected; used the start of the video as a fallback."
+    suggested_title = "Highlight Clip"
+
+    with open("output/clip_selection.json", "w") as f:
+        json.dump({"start": start, "end": end, "reason": reason, "suggested_title": suggested_title}, f, indent=2)
+
+    os.makedirs("output/clip", exist_ok=True)
+    vf = (
+        "split[bg][fg];"
+        "[bg]scale=1080:1920,gblur=sigma=30[bg];"
+        "[fg]scale=1080:-2:force_original_aspect_ratio=decrease[fg];"
+        "[bg][fg]overlay=(W-w)/2:(H-h)/2"
+    )
+    cmd = [
+        "ffmpeg", "-y", "-i", VIDEO_PATH,
+        "-ss", str(start), "-t", str(end - start),
+        "-vf", vf,
+        "-c:v", "libx264", "-c:a", "aac",
+        "output/clip/raw_clip.mp4"
+    ]
+    result_run = subprocess.run(cmd, capture_output=True, text=True)
+    if result_run.returncode != 0:
+        print("FFMPEG STDERR:", result_run.stderr[-3000:])
+        raise RuntimeError("Failed to cut fallback clip.")
+
+    print("Fallback clip cut and saved to output/clip/raw_clip.mp4")
+    exit(0)
 
 indexed_transcript = " ".join(f"[{w['index']}] {w['text']}" for w in all_words)
 MAX_CHARS = 15000
