@@ -61,8 +61,9 @@ cmd = [
     "-i", "branding/editor_watermark.png",
     "-filter_complex",
     f"[0:v]ass=output/clip_captions.ass,{drawtext_cta}[captioned];"
-    "[captioned][1:v]overlay=x=main_w-overlay_w-30:y=40[vout]",
+    "[captioned][1:v]overlay=x=main_w-overlay_w-30:y=40,scale=1080:1920:force_original_aspect_ratio=disable,setsar=1[vout]",
     "-map", "[vout]", "-map", "0:a",
+    "-metadata:s:v:0", "rotate=0",
     "-c:v", "libx264", "-c:a", "aac",
     "output/final_clip.mp4"
 ]
