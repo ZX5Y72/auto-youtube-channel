@@ -32,7 +32,7 @@ print(f"Video duration: {video_duration:.1f}s, total words: {len(all_words)}")
 if len(all_words) < 5:
     print("Very little or no speech detected - using a simple fallback clip instead of AI selection.")
     start = 0
-    end = min(40, video_duration)
+    end = min(60, video_duration)
     reason = "No clear speech detected; used the start of the video as a fallback."
     suggested_title = "Highlight Clip"
 
@@ -95,15 +95,32 @@ choice = json.loads(text)
 start_idx = max(0, min(int(choice["start_word_index"]), len(all_words) - 1))
 end_idx = max(0, min(int(choice["end_word_index"]), len(all_words) - 1))
 if end_idx <= start_idx:
-    end_idx = min(start_idx + 150, len(all_words) - 1)
+    end_idx = min(start_idx + 180, len(all_words) - 1)
 
 start = all_words[start_idx]["start"]
-end = all_words[end_idx]["end"]
 
-if end - start > 55:
-    end = start + 55
-if end - start < 20:
-    end = min(start + 40, video_duration)
+def find_sentence_boundary(idx, words, min_time, max_time):
+    for i in range(idx, len(words)):
+        w = words[i]
+        if w["end"] < min_time:
+            continue
+        if w["end"] > max_time:
+            break
+        if w["text"].rstrip().endswith((".", "!", "?")):
+            return i
+    return idx
+
+min_end_time = start + 60
+max_end_time = start + 90
+boundary_idx = find_sentence_boundary(end_idx, all_words, min_end_time, max_end_time)
+end = all_words[boundary_idx]["end"]
+
+if end - start > 120:
+    end = start + 120
+if end > video_duration:
+    end = video_duration
+if end - start < 30:
+    end = min(start + 60, video_duration)
 
 print(f"Selected clip: {start:.1f}s to {end:.1f}s (words {start_idx}-{end_idx}) - {choice.get('reason', '')}")
 
