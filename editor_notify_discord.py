@@ -28,11 +28,10 @@ if status == "success":
             original_link = m.get("original_link", "")
 
     message = (
-        f"✅ **New clip scheduled!**\n"
+        f"✅ **New clip published!**\n"
         f"{url}\n"
         f"Creator: {creator}\n"
-        f"Original: {original_link}\n"
-        f"Publishes at: {publish_at}"
+        f"Original: {original_link}"
     )
 else:
     message = "❌ **Editor clip pipeline failed.** Check the Actions tab for details."
