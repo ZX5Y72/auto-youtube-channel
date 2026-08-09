@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clip Uploader</title>
+<style>
+  body {
+    font-family: -apple-system, sans-serif;
+    background: #0f0f0f;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+  }
+  .card {
+    background: #1a1a1a;
+    padding: 40px;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 6px;
+    margin-top: 18px;
+  }
+  input[type="text"], input[type="url"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #0f0f0f;
+    color: #fff;
+    box-sizing: border-box;
+    font-size: 14px;
+  }
+  input[type="file"] {
+    width: 100%;
+    margin-top: 4px;
+    color: #aaa;
+    font-size: 13px;
+  }
+  button {
+    width: 100%;
+    padding: 14px;
+    margin-top: 28px;
+    border: none;
+    border-radius: 8px;
+    background: #ffd200;
+    color: #000;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  #status {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 14px;
+    min-height: 20px;
+  }
+  .success { color: #4ade80; }
+  .error { color: #f87171; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📎 Upload a Clip Source</h1>
+  <form id="uploadForm">
+    <label for="video">Video file</label>
+    <input type="file" id="video" name="video" accept="video/*" required>
+
+    <label for="creator">Creator handle</label>
+    <input type="text" id="creator" name="creator" placeholder="@MsBeast" required>
+
+    <label for="link">Original video link</label>
+    <input type="url" id="link" name="link" placeholder="https://youtube.com/watch?v=..." required>
+
+    <button type="submit" id="submitBtn">Upload & Start Pipeline</button>
+  </form>
+  <div id="status"></div>
+</div>
+
+<script>
+const WORKER_URL = "https://clip-uploader-backend.ziosgaming7.workers.dev/";
+
+document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const submitBtn = document.getElementById("submitBtn");
+  const statusEl = document.getElementById("status");
+  submitBtn.disabled = true;
+  statusEl.className = "";
+  statusEl.textContent = "Uploading, this may take a while for large files...";
+
+  const formData = new FormData();
+  formData.append("video", document.getElementById("video").files[0]);
+  formData.append("creator", document.getElementById("creator").value);
+  formData.append("link", document.getElementById("link").value);
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      statusEl.className = "success";
+      statusEl.textContent = "✅ " + data.message;
+      document.getElementById("uploadForm").reset();
+    } else {
+      statusEl.className = "error";
+      statusEl.textContent = "❌ " + (data.error || "Something went wrong");
+    }
+  } catch (err) {
+    statusEl.className = "error";
+    statusEl.textContent = "❌ Upload failed: " + err.message;
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
