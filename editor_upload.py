@@ -1,6 +1,5 @@
 import json
 import os
-import datetime
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -27,12 +26,6 @@ description = (
     f"{hashtags}"
 )
 
-now = datetime.datetime.utcnow()
-publish_time = now.replace(hour=15, minute=0, second=0, microsecond=0)
-if now >= publish_time:
-    publish_time += datetime.timedelta(days=1)
-publish_iso = publish_time.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
 request_body = {
     "snippet": {
         "title": meta["title"],
@@ -41,8 +34,7 @@ request_body = {
         "categoryId": "24",
     },
     "status": {
-        "privacyStatus": "private",
-        "publishAt": publish_iso,
+        "privacyStatus": "public",
         "selfDeclaredMadeForKids": False,
     },
 }
@@ -52,8 +44,7 @@ request = youtube.videos().insert(part="snippet,status", body=request_body, medi
 response = request.execute()
 video_id = response["id"]
 
-print(f"Uploaded and scheduled for {publish_iso}: https://youtube.com/watch?v={video_id}")
+print(f"Uploaded and published: https://youtube.com/watch?v={video_id}")
 
 with open("output/editor_upload_result.json", "w") as f:
-    json.dump({"url": f"https://youtube.com/watch?v={video_id}", "video_id": video_id,
-               "publish_at": publish_iso}, f)
+    json.dump({"url": f"https://youtube.com/watch?v={video_id}", "video_id": video_id}, f)
