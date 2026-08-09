@@ -1,8 +1,13 @@
 import os
+import json
 import subprocess
 import whisper
 
 os.makedirs("output", exist_ok=True)
+
+with open("output/clip_selection.json", "r") as f:
+    clip_info = json.load(f)
+clip_duration = clip_info["end"] - clip_info["start"]
 
 model = whisper.load_model("base")
 result = model.transcribe("output/clip/raw_clip.mp4", word_timestamps=True)
@@ -38,12 +43,24 @@ for segment in result["segments"]:
 with open("output/clip_captions.ass", "w") as f:
     f.write("\n".join(lines))
 
+cta_start = max(0, clip_duration - 3)
+font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+drawtext_cta = (
+    f"drawtext=fontfile={font_path}:text='Full video linked below\\!':"
+    f"fontsize=48:fontcolor=white:borderw=3:bordercolor=black:"
+    f"x=(w-text_w)/2:y=h-350:enable='between(t\\,{cta_start}\\,{clip_duration})',"
+    f"drawtext=fontfile={font_path}:text='Follow for more clips\\!':"
+    f"fontsize=48:fontcolor=yellow:borderw=3:bordercolor=black:"
+    f"x=(w-text_w)/2:y=h-280:enable='between(t\\,{cta_start}\\,{clip_duration})'"
+)
+
 cmd = [
     "ffmpeg", "-y",
     "-i", "output/clip/raw_clip.mp4",
     "-i", "branding/editor_watermark.png",
     "-filter_complex",
-    "[0:v]ass=output/clip_captions.ass[captioned];"
+    f"[0:v]ass=output/clip_captions.ass,{drawtext_cta}[captioned];"
     "[captioned][1:v]overlay=x=main_w-overlay_w-30:y=40[vout]",
     "-map", "[vout]", "-map", "0:a",
     "-c:v", "libx264", "-c:a", "aac",
