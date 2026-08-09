@@ -32,7 +32,7 @@ print(f"Video duration: {video_duration:.1f}s, total words: {len(all_words)}")
 if len(all_words) < 5:
     print("Very little or no speech detected - using a simple fallback clip instead of AI selection.")
     start = 0
-    end = min(60, video_duration)
+    end = min(45, video_duration)
     reason = "No clear speech detected; used the start of the video as a fallback."
     suggested_title = "Highlight Clip"
 
@@ -75,8 +75,9 @@ Here is a transcript of a video, with each word tagged by its index number in br
 {indexed_transcript}
 
 Find the SINGLE most engaging, exciting, funny, or surprising moment in this video that would work well
-as a standalone YouTube Short. It should span at least 150 words of speech (roughly 60+ seconds) and
+as a standalone YouTube Short. It should span roughly 100-140 words of speech (about 40-55 seconds) and
 capture a complete, self-contained moment with a strong hook near the start - not cut off mid-sentence.
+The clip MUST be under 59 seconds total, no exceptions.
 
 Respond with ONLY a JSON object with these exact keys:
 - "start_word_index": the index number of the first word of the clip (integer, copy it exactly from the brackets)
@@ -99,10 +100,10 @@ if end_idx <= start_idx:
 start = all_words[start_idx]["start"]
 end = all_words[end_idx]["end"]
 
-if end - start < 60:
-    end = min(start + 60, video_duration)
-if end - start < 60:
-    start = max(0, end - 60)
+if end - start > 59:
+    end = start + 59
+if end - start < 20:
+    end = min(start + 45, video_duration)
 
 print(f"Selected clip: {start:.1f}s to {end:.1f}s (words {start_idx}-{end_idx}) - {choice.get('reason', '')}")
 
