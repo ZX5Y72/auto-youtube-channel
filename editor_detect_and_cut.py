@@ -75,7 +75,7 @@ Here is a transcript of a video, with each word tagged by its index number in br
 {indexed_transcript}
 
 Find the SINGLE most engaging, exciting, funny, or surprising moment in this video that would work well
-as a standalone YouTube Short. It should span roughly 170-220 words of speech (about 60-90 seconds) and
+as a standalone YouTube Short. It should span roughly 100-140 words of speech (about 40-55 seconds) and
 capture a complete, self-contained moment with a strong hook near the start, ending on a finished
 sentence or complete thought - never cut off mid-sentence.
 
