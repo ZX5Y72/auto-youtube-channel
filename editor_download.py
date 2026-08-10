@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import requests
 import gdown
 
@@ -7,9 +8,25 @@ VIDEO_URL = os.environ["VIDEO_URL"]
 os.makedirs("output", exist_ok=True)
 path = "output/source_video.mp4"
 
+def extract_drive_file_id(url):
+    patterns = [
+        r"/file/d/([a-zA-Z0-9_-]+)",
+        r"[?&]id=([a-zA-Z0-9_-]+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
 if "drive.google.com" in VIDEO_URL:
-    print("Detected Google Drive link, using gdown...")
-    gdown.download(url=VIDEO_URL, output=path, quiet=False, fuzzy=True)
+    file_id = extract_drive_file_id(VIDEO_URL)
+    if not file_id:
+        print(f"Could not extract a file ID from this Drive link: {VIDEO_URL}")
+        sys.exit(1)
+
+    print(f"Detected Google Drive link, file ID: {file_id}")
+    gdown.download(id=file_id, output=path, quiet=False)
 else:
     print(f"Downloading directly from {VIDEO_URL}...")
     with requests.get(VIDEO_URL, stream=True, timeout=300) as r:
