@@ -1,12 +1,9 @@
-import google.generativeai as genai
 import os
 import json
 import random
+from llm_utils import call_llm, extract_json
 
 os.makedirs("output", exist_ok=True)
-
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-flash-latest")
 
 HISTORY_FILE = "topic_history.json"
 HASHTAG_FILE = "hashtag_history.json"
@@ -61,15 +58,12 @@ Generate a single JSON object with these exact keys:
 Return ONLY the JSON object, no markdown formatting, no backticks, no extra text.
 """
 
-response = model.generate_content(TOPIC_PROMPT)
-text = response.text.strip()
-text = text.replace("```json", "").replace("```", "").strip()
-data = json.loads(text)
+raw_response = call_llm(TOPIC_PROMPT)
+data = extract_json(raw_response)
 
 data.pop("hook_candidates", None)
 data.pop("best_hook_index", None)
 
-# --- Fact-check pass (2nd and final Gemini call) ---
 fact_check_prompt = (
     "Review this short history script for factual accuracy about the topic: "
     + data["topic"] + "\n\nScript: \"" + data["script"] + "\"\n\n"
@@ -77,8 +71,7 @@ fact_check_prompt = (
     "If there are factual errors, respond with ONLY a corrected version of the "
     "full script (100-140 words, same tone, same structure), nothing else."
 )
-fact_check_response = model.generate_content(fact_check_prompt)
-fact_check_text = fact_check_response.text.strip()
+fact_check_text = call_llm(fact_check_prompt).strip()
 if fact_check_text.upper() != "NONE" and len(fact_check_text) > 20:
     data["script"] = fact_check_text
     print("Fact-check made a correction to the script.")
