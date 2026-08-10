@@ -110,17 +110,17 @@ def find_sentence_boundary(idx, words, min_time, max_time):
             return i
     return idx
 
-min_end_time = start + 60
-max_end_time = start + 90
+min_end_time = start + 35
+max_end_time = start + 55
 boundary_idx = find_sentence_boundary(end_idx, all_words, min_end_time, max_end_time)
 end = all_words[boundary_idx]["end"]
 
-if end - start > 120:
-    end = start + 120
+if end - start > 57:
+    end = start + 57
 if end > video_duration:
     end = video_duration
-if end - start < 30:
-    end = min(start + 60, video_duration)
+if end - start < 20:
+    end = min(start + 45, video_duration)
 
 print(f"Selected clip: {start:.1f}s to {end:.1f}s (words {start_idx}-{end_idx}) - {choice.get('reason', '')}")
 
