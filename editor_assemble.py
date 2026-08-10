@@ -49,10 +49,10 @@ font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 drawtext_cta = (
     f"drawtext=fontfile={font_path}:text='Full video linked below\\!':"
     f"fontsize=48:fontcolor=white:borderw=3:bordercolor=black:"
-    f"x=(w-text_w)/2:y=h-350:enable='between(t\\,{cta_start}\\,{clip_duration})',"
+    f"x=(w-text_w)/2:y=150:enable='between(t\\,{cta_start}\\,{clip_duration})',"
     f"drawtext=fontfile={font_path}:text='Follow for more clips\\!':"
     f"fontsize=48:fontcolor=yellow:borderw=3:bordercolor=black:"
-    f"x=(w-text_w)/2:y=h-280:enable='between(t\\,{cta_start}\\,{clip_duration})'"
+    f"x=(w-text_w)/2:y=220:enable='between(t\\,{cta_start}\\,{clip_duration})'"
 )
 
 cmd = [
