@@ -2,7 +2,7 @@ import os
 import json
 import subprocess
 import whisper
-import google.generativeai as genai
+from groq import Groq
 
 os.makedirs("output", exist_ok=True)
 
@@ -32,7 +32,7 @@ print(f"Video duration: {video_duration:.1f}s, total words: {len(all_words)}")
 if len(all_words) < 5:
     print("Very little or no speech detected - using a simple fallback clip instead of AI selection.")
     start = 0
-    end = min(60, video_duration)
+    end = min(45, video_duration)
     reason = "No clear speech detected; used the start of the video as a fallback."
     suggested_title = "Highlight Clip"
 
@@ -66,8 +66,7 @@ MAX_CHARS = 15000
 if len(indexed_transcript) > MAX_CHARS:
     indexed_transcript = indexed_transcript[:MAX_CHARS]
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-model_g = genai.GenerativeModel("gemini-flash-latest")
+client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 prompt = f"""
 Here is a transcript of a video, with each word tagged by its index number in brackets:
@@ -88,14 +87,18 @@ Respond with ONLY a JSON object with these exact keys:
 No markdown, no backticks, just the JSON object.
 """
 
-response = model_g.generate_content(prompt)
-text = response.text.strip().replace("```json", "").replace("```", "").strip()
+response = client.chat.completions.create(
+    model="llama-3.3-70b-versatile",
+    messages=[{"role": "user", "content": prompt}],
+)
+text = response.choices[0].message.content.strip()
+text = text.replace("```json", "").replace("```", "").strip()
 choice = json.loads(text)
 
 start_idx = max(0, min(int(choice["start_word_index"]), len(all_words) - 1))
 end_idx = max(0, min(int(choice["end_word_index"]), len(all_words) - 1))
 if end_idx <= start_idx:
-    end_idx = min(start_idx + 180, len(all_words) - 1)
+    end_idx = min(start_idx + 150, len(all_words) - 1)
 
 start = all_words[start_idx]["start"]
 
@@ -129,16 +132,12 @@ with open("output/clip_selection.json", "w") as f:
                "suggested_title": choice.get("suggested_title", "")}, f, indent=2)
 
 os.makedirs("output/clip", exist_ok=True)
-
-# Proper vertical reframe: show the WHOLE original frame, fill empty space with a
-# blurred zoomed copy of itself - instead of destructively cropping away content.
 vf = (
     "split[bg][fg];"
     "[bg]scale=1080:1920,gblur=sigma=30[bg];"
     "[fg]scale=1080:-2:force_original_aspect_ratio=decrease[fg];"
     "[bg][fg]overlay=(W-w)/2:(H-h)/2"
 )
-
 cmd = [
     "ffmpeg", "-y", "-i", VIDEO_PATH,
     "-ss", str(start), "-t", str(end - start),
