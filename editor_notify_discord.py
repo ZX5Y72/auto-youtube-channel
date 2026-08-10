@@ -10,6 +10,12 @@ if not webhook_url:
 
 status = sys.argv[1] if len(sys.argv) > 1 else "unknown"
 
+if status == "duplicate":
+    message = "⚠️ **Skipped** — this source video was already clipped before (duplicate original link)."
+    requests.post(webhook_url, json={"content": message})
+    print("Discord duplicate notification sent.")
+    sys.exit(0)
+
 if status == "success":
     url = ""
     publish_at = ""
