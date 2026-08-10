@@ -9,3 +9,4 @@ google-generativeai
    requests
 rembg
 onnxruntime
+gdown
