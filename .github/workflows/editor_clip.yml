@@ -31,12 +31,25 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Check for duplicate source video
+        id: dedupe
+        env:
+          ORIGINAL_LINK: ${{ github.event.inputs.original_link }}
+        run: python editor_dedupe_check.py
+
       - name: Download source video
+        if: steps.dedupe.outputs.skip != 'true'
+        timeout-minutes: 15
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 2
+          command: python editor_download.py
         env:
           VIDEO_URL: ${{ github.event.inputs.video_url }}
-        run: python editor_download.py
 
       - name: Detect best moment and cut clip
+        if: steps.dedupe.outputs.skip != 'true'
         timeout-minutes: 20
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -44,6 +57,8 @@ jobs:
         run: python editor_detect_and_cut.py
 
       - name: Generate metadata
+        if: steps.dedupe.outputs.skip != 'true'
+        timeout-minutes: 5
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -52,21 +67,51 @@ jobs:
         run: python editor_generate_metadata.py
 
       - name: Assemble clip with captions and watermark
+        if: steps.dedupe.outputs.skip != 'true'
         timeout-minutes: 15
         run: python editor_assemble.py
 
       - name: Upload and schedule to EDITOR channel
+        if: steps.dedupe.outputs.skip != 'true'
+        timeout-minutes: 10
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          command: python editor_upload.py
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           EDITOR_YT_REFRESH_TOKEN: ${{ secrets.EDITOR_YT_REFRESH_TOKEN }}
-        run: python editor_upload.py
+
+      - name: Save dedupe history back to repo
+        if: always() && steps.dedupe.outputs.skip != 'true'
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add editor_seen_videos.json
+          git commit -m "Update editor seen videos" || echo "No changes to commit"
+          git push
+
+      - name: Upload debug artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-debug-${{ github.run_number }}
+          path: output/
+          retention-days: 5
 
       - name: Notify Discord (success)
-        if: success()
+        if: success() && steps.dedupe.outputs.skip != 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python editor_notify_discord.py success
+
+      - name: Notify Discord (skipped duplicate)
+        if: steps.dedupe.outputs.skip == 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python editor_notify_discord.py duplicate
 
       - name: Notify Discord (failure)
         if: failure()
