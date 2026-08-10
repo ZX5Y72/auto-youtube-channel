@@ -11,3 +11,4 @@ rembg
 onnxruntime
 gdown
 groq
+opencv-python-headless
