@@ -43,18 +43,26 @@ for segment in result["segments"]:
 with open("output/clip_captions.ass", "w") as f:
     f.write("\n".join(lines))
 
+import random as rnd
+
+CTA_PAIRS = [
+    ("Full video linked below!", "Follow for more clips!"),
+    ("Watch the full clip below!", "Subscribe for daily highlights!"),
+    ("Link to the full video below!", "Follow for more like this!"),
+]
+cta_line1, cta_line2 = rnd.choice(CTA_PAIRS)
+
 cta_start = max(0, clip_duration - 3)
 font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 drawtext_cta = (
-    f"drawtext=fontfile={font_path}:text='Full video linked below\\!':"
+    f"drawtext=fontfile={font_path}:text='{cta_line1}\\!':"
     f"fontsize=48:fontcolor=white:borderw=3:bordercolor=black:"
     f"x=(w-text_w)/2:y=150:enable='between(t\\,{cta_start}\\,{clip_duration})',"
-    f"drawtext=fontfile={font_path}:text='Follow for more clips\\!':"
+    f"drawtext=fontfile={font_path}:text='{cta_line2}\\!':"
     f"fontsize=48:fontcolor=yellow:borderw=3:bordercolor=black:"
     f"x=(w-text_w)/2:y=220:enable='between(t\\,{cta_start}\\,{clip_duration})'"
 )
-
 cmd = [
     "ffmpeg", "-y",
     "-i", "output/clip/raw_clip.mp4",
