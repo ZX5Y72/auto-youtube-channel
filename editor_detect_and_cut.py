@@ -2,7 +2,7 @@ import os
 import json
 import subprocess
 import whisper
-from groq import Groq
+from llm_utils import call_llm, extract_json
 
 os.makedirs("output", exist_ok=True)
 
@@ -29,16 +29,9 @@ except ValueError:
 video_duration = actual_duration
 print(f"Video duration: {video_duration:.1f}s, total words: {len(all_words)}")
 
-if len(all_words) < 5:
-    print("Very little or no speech detected - using a simple fallback clip instead of AI selection.")
-    start = 0
-    end = min(45, video_duration)
-    reason = "No clear speech detected; used the start of the video as a fallback."
-    suggested_title = "Highlight Clip"
-
+def finalize_clip(start, end, reason, suggested_title):
     with open("output/clip_selection.json", "w") as f:
         json.dump({"start": start, "end": end, "reason": reason, "suggested_title": suggested_title}, f, indent=2)
-
     os.makedirs("output/clip", exist_ok=True)
     vf = (
         "split[bg][fg];"
@@ -56,17 +49,18 @@ if len(all_words) < 5:
     result_run = subprocess.run(cmd, capture_output=True, text=True)
     if result_run.returncode != 0:
         print("FFMPEG STDERR:", result_run.stderr[-3000:])
-        raise RuntimeError("Failed to cut fallback clip.")
+        raise RuntimeError("Failed to cut clip.")
+    print("Clip cut and saved to output/clip/raw_clip.mp4")
 
-    print("Fallback clip cut and saved to output/clip/raw_clip.mp4")
+if len(all_words) < 5:
+    print("Very little or no speech detected - using a simple fallback clip instead of AI selection.")
+    finalize_clip(0, min(45, video_duration), "No clear speech detected; used the start of the video as a fallback.", "Highlight Clip")
     exit(0)
 
 indexed_transcript = " ".join(f"[{w['index']}] {w['text']}" for w in all_words)
 MAX_CHARS = 15000
 if len(indexed_transcript) > MAX_CHARS:
     indexed_transcript = indexed_transcript[:MAX_CHARS]
-
-client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 prompt = f"""
 Here is a transcript of a video, with each word tagged by its index number in brackets:
@@ -87,13 +81,14 @@ Respond with ONLY a JSON object with these exact keys:
 No markdown, no backticks, just the JSON object.
 """
 
-response = client.chat.completions.create(
-    model="llama-3.3-70b-versatile",
-    messages=[{"role": "user", "content": prompt}],
-)
-text = response.choices[0].message.content.strip()
-text = text.replace("```json", "").replace("```", "").strip()
-choice = json.loads(text)
+raw_response = call_llm(prompt)
+
+try:
+    choice = extract_json(raw_response)
+except Exception as e:
+    print(f"Could not parse a clip selection from the model ({e}), using fallback.")
+    finalize_clip(0, min(45, video_duration), "Model response could not be parsed; used fallback.", "Highlight Clip")
+    exit(0)
 
 start_idx = max(0, min(int(choice["start_word_index"]), len(all_words) - 1))
 end_idx = max(0, min(int(choice["end_word_index"]), len(all_words) - 1))
@@ -127,27 +122,4 @@ if end - start < 20:
 
 print(f"Selected clip: {start:.1f}s to {end:.1f}s (words {start_idx}-{end_idx}) - {choice.get('reason', '')}")
 
-with open("output/clip_selection.json", "w") as f:
-    json.dump({"start": start, "end": end, "reason": choice.get("reason", ""),
-               "suggested_title": choice.get("suggested_title", "")}, f, indent=2)
-
-os.makedirs("output/clip", exist_ok=True)
-vf = (
-    "split[bg][fg];"
-    "[bg]scale=1080:1920,gblur=sigma=30[bg];"
-    "[fg]scale=1080:-2:force_original_aspect_ratio=decrease[fg];"
-    "[bg][fg]overlay=(W-w)/2:(H-h)/2"
-)
-cmd = [
-    "ffmpeg", "-y", "-i", VIDEO_PATH,
-    "-ss", str(start), "-t", str(end - start),
-    "-vf", vf,
-    "-c:v", "libx264", "-c:a", "aac",
-    "output/clip/raw_clip.mp4"
-]
-result = subprocess.run(cmd, capture_output=True, text=True)
-if result.returncode != 0:
-    print("FFMPEG STDERR:", result.stderr[-3000:])
-    raise RuntimeError("Failed to cut clip.")
-
-print("Clip cut and saved to output/clip/raw_clip.mp4")
+finalize_clip(start, end, choice.get("reason", ""), choice.get("suggested_title", ""))
