@@ -97,7 +97,7 @@
 </div>
 
 <script>
-const WORKER_URL = "https://clip-uploader-backend.ziosgaming7.workers.dev/";
+const WORKER_URL = "YOUR_WORKER_URL_HERE";
 
 document.getElementById("uploadForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -106,17 +106,19 @@ document.getElementById("uploadForm").addEventListener("submit", async (e) => {
   const statusEl = document.getElementById("status");
   submitBtn.disabled = true;
   statusEl.className = "";
-  statusEl.textContent = "Uploading, this may take a while for large files...";
+  statusEl.textContent = "Starting pipeline...";
 
-  const formData = new FormData();
-  formData.append("video", document.getElementById("video").files[0]);
-  formData.append("creator", document.getElementById("creator").value);
-  formData.append("link", document.getElementById("link").value);
+  const payload = {
+    video_link: document.getElementById("video").value,
+    creator: document.getElementById("creator").value,
+    link: document.getElementById("link").value,
+  };
 
   try {
     const res = await fetch(WORKER_URL, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
 
@@ -130,7 +132,7 @@ document.getElementById("uploadForm").addEventListener("submit", async (e) => {
     }
   } catch (err) {
     statusEl.className = "error";
-    statusEl.textContent = "❌ Upload failed: " + err.message;
+    statusEl.textContent = "❌ Failed: " + err.message;
   } finally {
     submitBtn.disabled = false;
   }
