@@ -1,6 +1,6 @@
 import os
 import json
-import google.generativeai as genai
+from groq import Groq
 
 with open("output/clip_selection.json", "r") as f:
     clip_info = json.load(f)
@@ -8,8 +8,7 @@ with open("output/clip_selection.json", "r") as f:
 creator_handle = os.environ.get("CREATOR_HANDLE", "").strip()
 original_link = os.environ.get("ORIGINAL_LINK", "").strip()
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-flash-latest")
+client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 prompt = f"""
 This is a short clip taken from a longer video by creator {creator_handle}.
@@ -24,8 +23,12 @@ Generate a JSON object with:
 Return ONLY the JSON object, no markdown, no backticks.
 """
 
-response = model.generate_content(prompt)
-text = response.text.strip().replace("```json", "").replace("```", "").strip()
+response = client.chat.completions.create(
+    model="llama-3.3-70b-versatile",
+    messages=[{"role": "user", "content": prompt}],
+)
+text = response.choices[0].message.content.strip()
+text = text.replace("```json", "").replace("```", "").strip()
 meta = json.loads(text)
 
 meta["creator_handle"] = creator_handle
