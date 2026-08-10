@@ -39,12 +39,12 @@ jobs:
       - name: Detect best moment and cut clip
         timeout-minutes: 20
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python editor_detect_and_cut.py
 
       - name: Generate metadata
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           CREATOR_HANDLE: ${{ github.event.inputs.creator_handle }}
           ORIGINAL_LINK: ${{ github.event.inputs.original_link }}
         run: python editor_generate_metadata.py
