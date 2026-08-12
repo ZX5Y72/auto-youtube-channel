@@ -39,7 +39,6 @@ jobs:
 
       - name: Download source video
         if: steps.dedupe.outputs.skip != 'true'
-        timeout-minutes: 15
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 15
@@ -76,13 +75,12 @@ jobs:
         run: python editor_generate_metadata.py
 
       - name: Assemble clip with captions and watermark
-        if: steps.dedupe.outputs.skip != 'true'
+        if: steps.dedupe.outputs.skip != 'true' && steps.moderation.outputs.flagged != 'true'
         timeout-minutes: 15
         run: python editor_assemble.py
 
       - name: Upload and schedule to EDITOR channel
-        if: steps.dedupe.outputs.skip != 'true'
-        timeout-minutes: 10
+        if: steps.dedupe.outputs.skip != 'true' && steps.moderation.outputs.flagged != 'true'
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 10
@@ -93,6 +91,17 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           EDITOR_YT_REFRESH_TOKEN: ${{ secrets.EDITOR_YT_REFRESH_TOKEN }}
 
+      - name: Translate and upload captions
+        if: steps.dedupe.outputs.skip != 'true' && steps.moderation.outputs.flagged != 'true'
+        timeout-minutes: 5
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          EDITOR_YT_REFRESH_TOKEN: ${{ secrets.EDITOR_YT_REFRESH_TOKEN }}
+        run: python editor_translate_captions.py
+
       - name: Save history files back to repo
         if: always() && steps.dedupe.outputs.skip != 'true'
         run: |
@@ -100,7 +109,11 @@ jobs:
           git config --global user.email "actions@github.com"
           git add editor_seen_videos.json editor_hashtag_history.json 2>/dev/null || true
           git commit -m "Update editor history files" || echo "No changes to commit"
-          git push
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push && break
+            echo "Push attempt $i failed, retrying..."
+            sleep 5
+          done
 
       - name: Upload debug artifacts on failure
         if: failure()
@@ -111,7 +124,7 @@ jobs:
           retention-days: 5
 
       - name: Notify Discord (success)
-        if: success() && steps.dedupe.outputs.skip != 'true'
+        if: success() && steps.dedupe.outputs.skip != 'true' && steps.moderation.outputs.flagged != 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python editor_notify_discord.py success
@@ -121,6 +134,12 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python editor_notify_discord.py duplicate
+
+      - name: Notify Discord (flagged by moderation)
+        if: steps.moderation.outputs.flagged == 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python editor_notify_discord.py flagged
 
       - name: Notify Discord (failure)
         if: failure()
