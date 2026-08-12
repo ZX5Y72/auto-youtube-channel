@@ -56,8 +56,17 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python editor_detect_and_cut.py
 
-      - name: Generate metadata
+      - name: Moderation check
         if: steps.dedupe.outputs.skip != 'true'
+        id: moderation
+        timeout-minutes: 3
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python editor_moderation_check.py
+
+      - name: Generate metadata
+        if: steps.dedupe.outputs.skip != 'true' && steps.moderation.outputs.flagged != 'true'
         timeout-minutes: 5
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
