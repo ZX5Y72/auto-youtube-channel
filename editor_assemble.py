@@ -56,10 +56,10 @@ cta_start = max(0, clip_duration - 3)
 font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 drawtext_cta = (
-    f"drawtext=fontfile={font_path}:text='{cta_line1}\\!':"
+    f"drawtext=fontfile={font_path}:text='{cta_line1}':"
     f"fontsize=48:fontcolor=white:borderw=3:bordercolor=black:"
     f"x=(w-text_w)/2:y=150:enable='between(t\\,{cta_start}\\,{clip_duration})',"
-    f"drawtext=fontfile={font_path}:text='{cta_line2}\\!':"
+    f"drawtext=fontfile={font_path}:text='{cta_line2}':"
     f"fontsize=48:fontcolor=yellow:borderw=3:bordercolor=black:"
     f"x=(w-text_w)/2:y=220:enable='between(t\\,{cta_start}\\,{clip_duration})'"
 )
