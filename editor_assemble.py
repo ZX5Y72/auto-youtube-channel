@@ -25,7 +25,8 @@ PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,90,&H0000FFFF,&H0000FFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,4,0,5,10,10,10,1
+CAPTION_COLORS = ["&H0000FFFF", "&H00FFFFFF", "&H00FFFF00"]
+chosen_caption_color = random.choice(CAPTION_COLORS)
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -42,6 +43,22 @@ for segment in result["segments"]:
 
 with open("output/clip_captions.ass", "w") as f:
     f.write("\n".join(lines))
+
+def format_srt_time(seconds):
+    hrs = int(seconds // 3600)
+    mins = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    ms = int((seconds % 1) * 1000)
+    return f"{hrs:02}:{mins:02}:{secs:02},{ms:03}"
+
+srt_lines = []
+for i, segment in enumerate(result["segments"], start=1):
+    s = format_srt_time(segment["start"])
+    e = format_srt_time(segment["end"])
+    srt_lines.append(f"{i}\n{s} --> {e}\n{segment['text'].strip()}\n")
+
+with open("output/clip_captions_en.srt", "w") as f:
+    f.write("\n".join(srt_lines))
 
 import random as rnd
 
