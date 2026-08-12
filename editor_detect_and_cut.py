@@ -104,7 +104,7 @@ def finalize_clip(start, end, reason, suggested_title):
         "ffmpeg", "-y", "-i", VIDEO_PATH,
         "-ss", str(start), "-t", str(end - start),
         "-vf", vf,
-        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
+        "-af", "silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:detection=peak,loudnorm=I=-16:TP=-1.5:LRA=11",
         "-c:v", "libx264", "-c:a", "aac",
         "output/clip/raw_clip.mp4"
     ]
