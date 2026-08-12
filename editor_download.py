@@ -19,6 +19,10 @@ def extract_drive_file_id(url):
             return match.group(1)
     return None
 
+if "dropbox.com" in VIDEO_URL and "dl=1" not in VIDEO_URL and "dl=0" in VIDEO_URL:
+    VIDEO_URL = VIDEO_URL.replace("dl=0", "dl=1")
+    print(f"Adjusted Dropbox link for direct download: {VIDEO_URL}")
+
 if "drive.google.com" in VIDEO_URL:
     file_id = extract_drive_file_id(VIDEO_URL)
     if not file_id:
