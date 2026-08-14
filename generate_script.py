@@ -50,7 +50,7 @@ Generate a single JSON object with these exact keys:
 - "hook_candidates": an array of exactly 3 different opening-sentence options for the script (each under 15 words, each a different style: a question, a bold claim, a surprising number/fact), historically accurate
 - "best_hook_index": your own judgment of which of the 3 hook_candidates (0, 1, or 2) is most scroll-stopping and curiosity-inducing - just the number
 - "script": a spoken voiceover script using hook_candidates[best_hook_index] as the exact first sentence. STRICT REQUIREMENT: 100-140 words total. End with ONE short natural sentence encouraging the viewer to follow for more history content. Conversational tone, no stage directions.
-- "title": a catchy YouTube Shorts title, under 60 characters
+- "title": a catchy YouTube Shorts title, under 60 characters. You may optionally include ONE relevant emoji if it genuinely fits (e.g. a pyramid for Egypt content) - don't force it, and don't use one if nothing fits naturally
 - "description": a 2-3 sentence description, mention it's part of a history series
 - "hashtags": an array of 6 relevant hashtags (no # symbol)
 - "image_prompts": an array of 8-10 image generation prompts, one for roughly every 1.5-2 seconds of the script, visually distinct from each other. EACH prompt must end with this exact style suffix: ", digital illustration, painterly animated style, warm muted color palette, dramatic lighting, detailed historical accuracy, no text, no watermark"
