@@ -139,3 +139,11 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python notify_discord.py failure
+
+      - name: Log run health (success)
+        if: success()
+        run: python log_run_health.py history success
+
+      - name: Log run health (failure)
+        if: failure()
+        run: python log_run_health.py history failure
