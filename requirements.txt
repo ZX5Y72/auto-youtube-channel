@@ -12,3 +12,17 @@ onnxruntime
 gdown
 groq
 opencv-python-headless
+google-generativeai==0.8.3
+groq==0.11.0
+edge-tts==6.1.19
+openai-whisper==20231117
+moviepy==2.1.1
+pillow==10.4.0
+requests==2.32.3
+rembg==2.0.59
+onnxruntime==1.19.2
+google-auth==2.35.0
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.149.0
+opencv-python-headless==4.10.0.84
+gdown==5.2.0
