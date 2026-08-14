@@ -22,6 +22,9 @@ def format_ass_time(seconds):
 CAPTION_COLORS = ["&H0000FFFF", "&H00FFFFFF", "&H00FFFF00"]
 chosen_caption_color = random.choice(CAPTION_COLORS)
 
+FONT_CHOICES = ["Liberation Sans Bold", "DejaVu Sans Bold"]
+chosen_font = random.choice(FONT_CHOICES)
+
 ass_header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
