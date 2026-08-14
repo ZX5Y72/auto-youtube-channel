@@ -107,7 +107,7 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add editor_seen_videos.json editor_hashtag_history.json 2>/dev/null || true
+          git add editor_seen_videos.json editor_hashtag_history.json editor_health_log.json 2>/dev/null || true
           git commit -m "Update editor history files" || echo "No changes to commit"
           for i in 1 2 3 4 5; do
             git pull --rebase origin main && git push && break
