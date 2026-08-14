@@ -26,7 +26,7 @@ The clip is about: {clip_info.get('reason', '')}
 Suggested angle: {clip_info.get('suggested_title', '')}
 
 Generate a JSON object with:
-- "title": a punchy YouTube Shorts title under 70 characters that includes "{creator_handle}" naturally in it
+- "title": a punchy YouTube Shorts title under 70 characters that includes "{creator_handle}" naturally in it. You may optionally include ONE relevant emoji if it genuinely fits - don't force it
 - "description": 2-3 sentences describing the clip, must credit {creator_handle} as the original creator
 - "hashtags": array of 6 relevant hashtags (no # symbol), include "shorts"
 
