@@ -146,3 +146,11 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python editor_notify_discord.py failure
+
+      - name: Log run health (success)
+        if: success() && steps.dedupe.outputs.skip != 'true' && steps.moderation.outputs.flagged != 'true'
+        run: python log_run_health.py editor success
+
+      - name: Log run health (failure)
+        if: failure()
+        run: python log_run_health.py editor failure
