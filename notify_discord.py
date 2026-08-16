@@ -25,7 +25,7 @@ if status == "success":
 
     message = f"✅ **New video uploaded!**\n**{title}**\n{video_url}"
 else:
-    message = "❌ **Daily video pipeline failed.** Check the Actions tab for details."
+    message = "❌ **Daily video pipeline failed.** No action needed — tomorrow's run will retry automatically. Check the Actions tab if you're curious why."
 
 requests.post(webhook_url, json={"content": message})
 print("Discord notification sent.")
