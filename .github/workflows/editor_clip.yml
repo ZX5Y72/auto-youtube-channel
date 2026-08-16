@@ -125,10 +125,12 @@ jobs:
           retention-days: 5
 
       - name: Notify Discord (success)
-        if: success() && steps.dedupe.outputs.skip != 'true' && steps.moderation.outputs.flagged != 'true'
+        if: success()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: python editor_notify_discord.py success
+        run: |
+          pip install requests --quiet
+          python notify_discord.py success
 
       - name: Notify Discord (skipped duplicate)
         if: steps.dedupe.outputs.skip == 'true'
@@ -146,7 +148,9 @@ jobs:
         if: failure()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: python editor_notify_discord.py failure
+        run: |
+          pip install requests --quiet
+          python notify_discord.py failure
 
       - name: Log run health (success)
         if: success() && steps.dedupe.outputs.skip != 'true' && steps.moderation.outputs.flagged != 'true'
