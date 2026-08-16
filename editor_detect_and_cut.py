@@ -85,26 +85,7 @@ def finalize_clip(start, end, reason, suggested_title):
     src_w, src_h = get_source_dimensions()
     is_already_vertical = (src_h / src_w) >= 1.3 if src_w else False
 
-    if is_already_vertical:
-        print("Source is already vertical, using a direct scale/crop (no blur-pad needed).")
-        vf = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920"
-    else:
-        face_x_frac = detect_face_crop_x(start, end)
-        if face_x_frac is not None:
-            print(f"Face detected, framing tightly around it (x fraction: {face_x_frac:.2f}).")
-            crop_x_expr = f"iw*{max(0.0, min(1.0, face_x_frac)):.3f}-ow/2"
-            vf = (
-                f"scale=-2:1920,crop=1080:1920:x='{crop_x_expr}':y=0"
-            )
-        else:
-            print("No face detected, using blurred-background pad to show the full frame.")
-            vf = (
-                "split[bg][fg];"
-                "[bg]scale=1080:1920,gblur=sigma=30[bg];"
-                "[fg]scale=1080:-2:force_original_aspect_ratio=decrease[fg];"
-                "[bg][fg]overlay=(W-w)/2:(H-h)/2"
-            )
-
+    rozell20@fictnio.com
     cmd = [
         "ffmpeg", "-y", "-i", VIDEO_PATH,
         "-ss", str(start), "-t", str(end - start),
