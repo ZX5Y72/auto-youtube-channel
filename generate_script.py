@@ -53,7 +53,7 @@ Generate a single JSON object with these exact keys:
 - "title": a catchy YouTube Shorts title, under 60 characters. You may optionally include ONE relevant emoji if it genuinely fits (e.g. a pyramid for Egypt content) - don't force it, and don't use one if nothing fits naturally
 - "description": a 2-3 sentence description, mention it's part of a history series
 - "hashtags": an array of 6 relevant hashtags (no # symbol)
-- "image_prompts": an array of 8-10 image generation prompts, one for roughly every 1.5-2 seconds of the script, visually distinct from each other. EACH prompt must end with this exact style suffix: ", digital illustration, painterly animated style, warm muted color palette, dramatic lighting, detailed historical accuracy, no text, no watermark"
+- "image_prompts": an array of 6-12 image generation prompts (vary the count naturally based on the story's pacing), one for roughly every 1.5-2 seconds of the script, visually distinct from each other. EACH prompt must end with this exact style suffix: ", digital illustration, painterly animated style, warm muted color palette, dramatic lighting, detailed historical accuracy, no text, no watermark"
 
 Return ONLY the JSON object, no markdown formatting, no backticks, no extra text.
 """
