@@ -29,6 +29,11 @@ except ValueError:
     actual_duration = all_words[-1]["end"] if all_words else 60
 
 video_duration = actual_duration
+if video_duration < 70:
+    print(f"Source video too short ({video_duration:.1f}s) to extract a meaningful clip, skipping.")
+    with open("output/clip_selection.json", "w") as f:
+        json.dump({"skip_too_short": True}, f)
+    exit(0)
 print(f"Video duration: {video_duration:.1f}s, total words: {len(all_words)}")
 
 def get_source_dimensions():
@@ -198,11 +203,15 @@ for choice in candidates:
                 mean_volume = float(line.split(":")[1].replace("dB", "").strip())
             except ValueError:
                 pass
-    if mean_volume > -40:
+    clip_words = [w["text"].lower().strip(".,!?") for w in all_words if start <= w["start"] <= end]
+    filler_count = sum(1 for w in clip_words if w in ("um", "uh", "like", "you", "know", "so", "actually"))
+    filler_ratio = filler_count / max(len(clip_words), 1)
+
+    if mean_volume > -40 and filler_ratio < 0.15:
         chosen = (start, end, choice)
         break
     else:
-        print(f"Candidate rejected (too quiet: {mean_volume}dB), trying next...")
+        print(f"Candidate rejected (volume: {mean_volume}dB, filler ratio: {filler_ratio:.2f}), trying next...")
 
 if chosen is None:
     start, end = resolve_candidate(candidates[0])
