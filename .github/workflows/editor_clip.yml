@@ -35,6 +35,7 @@ jobs:
         id: dedupe
         env:
           ORIGINAL_LINK: ${{ github.event.inputs.original_link }}
+          VIDEO_URL: ${{ github.event.inputs.video_url }}
         run: python editor_dedupe_check.py
 
       - name: Download source video
