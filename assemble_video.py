@@ -13,9 +13,14 @@ audio = AudioFileClip("output/voiceover_trimmed.mp3")
 total_duration = audio.duration
 
 hook_clip = TextClip(
+    font="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     text=data.get("hook_text", "").upper(),
-    font_size=100, color="yellow", stroke_color="black", stroke_width=6,
-    size=(1000, None), method="caption",
+    font_size=100,
+    color="yellow",
+    stroke_color="black",
+    stroke_width=6,
+    size=(1000, None),
+    method="caption",
 ).with_duration(0.6).with_position("center")
 
 image_files = sorted(os.listdir("output/images"))
