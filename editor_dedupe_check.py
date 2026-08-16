@@ -1,6 +1,7 @@
 import os
 import json
 import hashlib
+import subprocess
 
 SEEN_FILE = "editor_seen_videos.json"
 original_link = os.environ.get("ORIGINAL_LINK", "").strip()
@@ -12,6 +13,8 @@ if os.path.exists(SEEN_FILE):
         seen = json.load(f)
 
 github_output = os.environ.get("GITHUB_OUTPUT")
+
+video_url = os.environ.get("VIDEO_URL", "")
 
 if link_hash in seen:
     print(f"This original video has already been clipped before, skipping: {original_link}")
