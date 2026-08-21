@@ -121,7 +121,7 @@ sfx_mix_inputs = "".join(sfx_labels)
 sfx_count = len(sfx_labels)
 
 video_filter = (
-    "[0:v]eq=contrast=1.15:saturation=1.2:gamma=0.95,vignette=PI/6[graded];"
+    "[0:v]eq=contrast=1.1:saturation=1.15:gamma=1.05[graded];"
     "[graded]ass=output/captions.ass[captioned];"
     "[captioned][2:v]overlay=x=main_w-overlay_w-30:y=40[vout];"
 )
