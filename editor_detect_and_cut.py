@@ -76,7 +76,6 @@ def detect_face_crop_x(start, end):
     if not x_fractions:
         return None
     return sum(x_fractions) / len(x_fractions)
-
 def finalize_clip(start, end, reason, suggested_title):
     with open("output/clip_selection.json", "w") as f:
         json.dump({"start": start, "end": end, "reason": reason, "suggested_title": suggested_title}, f, indent=2)
@@ -85,7 +84,18 @@ def finalize_clip(start, end, reason, suggested_title):
     src_w, src_h = get_source_dimensions()
     is_already_vertical = (src_h / src_w) >= 1.3 if src_w else False
 
-    rozell20@fictnio.com
+    if is_already_vertical:
+        print("Source is already vertical, using a direct scale/crop (no blur-pad needed).")
+        vf = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920"
+    else:
+        print("Using blurred-background pad to show the full frame.")
+        vf = (
+            "split[bg][fg];"
+            "[bg]scale=1080:1920,gblur=sigma=30[bg];"
+            "[fg]scale=1080:-2:force_original_aspect_ratio=decrease[fg];"
+            "[bg][fg]overlay=(W-w)/2:(H-h)/2"
+        )
+
     cmd = [
         "ffmpeg", "-y", "-i", VIDEO_PATH,
         "-ss", str(start), "-t", str(end - start),
