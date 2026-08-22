@@ -4,7 +4,18 @@ import requests
 import time
 import base64
 import urllib.parse
+ from PIL import Image, ImageEnhance
 
+def fix_brightness_if_dark(path):
+    img = Image.open(path).convert("RGB")
+    grayscale = img.convert("L")
+    avg_brightness = sum(grayscale.getdata()) / (grayscale.width * grayscale.height)
+    if avg_brightness < 80:
+        boost = 1.6
+        img = ImageEnhance.Brightness(img).enhance(boost)
+        img.save(path)
+        print(f"  Image was too dark (avg {avg_brightness:.0f}), brightened.")
+        
 with open("output/content.json", "r") as f:
     data = json.load(f)
 
@@ -41,8 +52,7 @@ for i, prompt in enumerate(data["image_prompts"]):
     print(f"Generating image {i+1}/{len(data['image_prompts'])}...")
     path = f"output/images/scene_{i+1}.png"
 
-    success = try_cloudflare(prompt, path)
-
+        success = try_cloudflare(prompt, path)
     if not success:
         print("  Falling back to Pollinations...")
         for attempt in range(3):
@@ -50,8 +60,9 @@ for i, prompt in enumerate(data["image_prompts"]):
                 success = True
                 break
             time.sleep(15)
-
-    if not success:
+    if success:
+        fix_brightness_if_dark(path)
+    else:
         print(f"  Both sources failed for image {i+1}, skipping.")
 
 print("All images generated.")
