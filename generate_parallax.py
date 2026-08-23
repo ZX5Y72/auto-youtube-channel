@@ -6,7 +6,11 @@ IMAGES_DIR = "output/images"
 OUT_DIR = "output/images_parallax"
 os.makedirs(OUT_DIR, exist_ok=True)
 
+os.makedirs(IMAGES_DIR, exist_ok=True)
 image_files = sorted(f for f in os.listdir(IMAGES_DIR) if f.endswith(".png"))
+if not image_files:
+    print("No images found to process for parallax, skipping.")
+    exit(0)
 
 for fname in image_files:
     path = os.path.join(IMAGES_DIR, fname)
