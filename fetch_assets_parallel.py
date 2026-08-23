@@ -14,6 +14,16 @@ scripts = ["generate_images.py", "fetch_broll.py", "fetch_sfx.py"]
 with ThreadPoolExecutor(max_workers=3) as executor:
     results = list(executor.map(run_script, scripts))
 
+critical_failure = False
 for name, code in results:
-    status = "OK" if code == 0 else "FAILED (non-critical, pipeline continues)"
+    if code == 0:
+        status = "OK"
+    elif name == "generate_images.py":
+        status = "FAILED (CRITICAL)"
+        critical_failure = True
+    else:
+        status = "FAILED (non-critical, pipeline continues)"
     print(f"{name}: {status}")
+
+if critical_failure:
+    raise SystemExit("generate_images.py failed - this is required for the video, stopping here.")
