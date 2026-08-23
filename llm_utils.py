@@ -15,7 +15,7 @@ def extract_json(text):
         return json.loads(match.group(0))
     raise ValueError(f"Could not parse JSON from response: {text[:300]}")
 
-def call_llm(prompt, gemini_model="gemini-flash-latest", groq_model="llama-3.3-70b-versatile", max_retries=3):
+def call_llm(prompt, gemini_model="gemini-flash-latest", groq_model="openai/gpt-oss-120b", max_retries=3):
     gemini_key = os.environ.get("GEMINI_API_KEY")
 
     if gemini_key:
