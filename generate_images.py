@@ -27,7 +27,7 @@ CF_URL = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/run/@cf
 headers = {"Authorization": f"Bearer {API_TOKEN}"}
 
 def try_cloudflare(prompt, path):
-    response = requests.post(CF_URL, headers=headers, json={"prompt": prompt}, timeout=60)
+    response = requests.post(CF_URL, headers=headers, json={"prompt": prompt, "num_steps": 4}, timeout=60)
     if response.status_code == 200:
         result = response.json()
         image_b64 = result["result"]["image"]
