@@ -68,9 +68,21 @@ for i, filename in enumerate(scene_sources):
             else:
                 fg_clip = fg_clip.with_position("center")
 
+            # NOTE: this CompositeVideoClip is intentionally the ONLY level of
+            # compositing this scene goes through before concatenation.
+            # MoviePy 2.x has a known bug where a CompositeVideoClip nested
+            # inside another CompositeVideoClip loses alpha on any masked
+            # (transparent) image inside it and renders those pixels as solid
+            # black. concatenate_videoclips(method="compose") used to wrap
+            # every clip in an extra CompositeVideoClip to pad mismatched
+            # sizes, which triggered that bug here. We avoid it by making
+            # every clip exactly 1080x1920 up front and concatenating with
+            # method="chain" instead, which does not add another composite
+            # layer.
             clip = CompositeVideoClip([bg_clip, fg_clip], size=(1080, 1920))
         else:
             clip = ImageClip(clip_path).with_duration(duration_per_scene)
+            clip = clip.resized(height=1920)
             if style == 0:
                 clip = clip.resized(lambda t: 1 + 0.15 * t)
                 clip = clip.with_position(lambda t: (-35 * t, "center"))
@@ -82,10 +94,19 @@ for i, filename in enumerate(scene_sources):
                 clip = clip.with_position(lambda t: ("center", -30 * t))
             else:
                 clip = clip.resized(lambda t: 1 + 0.10 * t)
+            # Force onto a fixed 1080x1920 canvas so this clip is the same
+            # size as every other scene clip. This lets concatenate_videoclips
+            # use method="chain" below instead of method="compose", which is
+            # what avoids the nested-CompositeVideoClip alpha bug.
+            clip = CompositeVideoClip([clip], size=(1080, 1920)).with_duration(duration_per_scene)
+            clip = clip.cropped(x_center=1080 / 2, width=1080)
 
     clips.append(clip)
 
-main_video = concatenate_videoclips(clips, method="compose")
+# method="chain" (not "compose") -- see notes above about the nested
+# CompositeVideoClip alpha bug in MoviePy 2.x. This only works because every
+# clip above is already normalized to 1080x1920.
+main_video = concatenate_videoclips(clips, method="chain")
 video = CompositeVideoClip([main_video, hook_clip])
 video = video.with_audio(audio)
 video = video.resized(height=1920)
