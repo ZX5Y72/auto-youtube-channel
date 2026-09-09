@@ -1,10 +1,7 @@
 import os
 import json
 import subprocess
-from editor_queue_state import load_state, save_state
-from drive_utils import list_queue_videos, download_video, get_video_credit
-
-MAX_CLIP_DURATION = int(os.environ.get("MAX_CLIP_DURATION", "59"))
+from editor_queue_state import load_state
 
 os.makedirs("output", exist_ok=True)
 os.makedirs("output/clip", exist_ok=True)
@@ -20,60 +17,39 @@ def set_output(name, value):
 
 
 def gh(*args):
-    result = subprocess.run(["gh"] + list(args), capture_output=True, text=True)
-    return result
+    return subprocess.run(["gh"] + list(args), capture_output=True, text=True)
 
 
-if state["pending_clip_indices"]:
-    idx = state["pending_clip_indices"][0]
-    tag = state["release_tag"]
+pending = state.get("pending_clips", [])
 
-    gh("release", "download", tag, "-p", f"clip_{idx}.mp4", "-D", "output/clip", "--clobber")
-    gh("release", "download", tag, "-p", "clips_meta.json", "-D", "output", "--clobber")
-
-    os.replace(f"output/clip/clip_{idx}.mp4", "output/clip/raw_clip.mp4")
-
-    with open("output/clips_meta.json", "r") as f:
-        meta = json.load(f)
-    entry = next(c for c in meta if c["index"] == idx)
-
-    with open("output/clip_selection.json", "w") as f:
-        json.dump(entry, f, indent=2)
-
+if not pending:
+    print("Posting queue is empty.")
     with open("output/queue_context.json", "w") as f:
-        json.dump({"mode": "continue", "credit": state["current_video_name_credit"]}, f)
+        json.dump({"mode": "empty"}, f)
+    set_output("mode", "empty")
+    exit(0)
 
-    set_output("mode", "continue")
-    set_output("credit", state["current_video_name_credit"])
-    print(f"Continuing queue: video={state['current_video_name']}, clip index={idx}")
+entry = pending[0]
+video_id = entry["video_id"]
+tag = entry["release_tag"]
+idx = entry["clip_index"]
+credit = state.get("video_credits", {}).get(video_id, "Unknown Creator")
 
-else:
-    videos = list_queue_videos()
-    remaining = [v for v in videos if v["id"] not in state["used_video_ids"]]
+gh("release", "download", tag, "-p", f"clip_{idx}.mp4", "-D", "output/clip", "--clobber")
+gh("release", "download", tag, "-p", "clips_meta.json", "-D", "output", "--clobber")
 
-    if not remaining:
-        print("No unused videos left in Drive queue.")
-        with open("output/queue_context.json", "w") as f:
-            json.dump({"mode": "empty"}, f)
-        set_output("mode", "empty")
-        exit(0)
+os.replace(f"output/clip/clip_{idx}.mp4", "output/clip/raw_clip.mp4")
 
-    video = remaining[0]
-    credit = get_video_credit(video)
+with open("output/clips_meta.json", "r") as f:
+    meta = json.load(f)
+clip_entry = next(c for c in meta if c["index"] == idx)
 
-    download_video(video["id"], "output/source_video.mp4")
+with open("output/clip_selection.json", "w") as f:
+    json.dump(clip_entry, f, indent=2)
 
-    state["current_video_id"] = video["id"]
-    state["current_video_name"] = video["name"]
-    state["current_video_name_credit"] = credit
-    state["used_video_ids"].append(video["id"])
-    state["release_tag"] = f"editorqueue-{video['id']}"
-    state["pending_clip_indices"] = []
-    save_state(state)
+with open("output/queue_context.json", "w") as f:
+    json.dump({"mode": "post", "credit": credit}, f)
 
-    with open("output/queue_context.json", "w") as f:
-        json.dump({"mode": "new_video", "credit": credit}, f)
-
-    set_output("mode", "new_video")
-    set_output("credit", credit)
-    print(f"Starting new video: {video['name']} (credit: {credit})")
+set_output("mode", "post")
+set_output("credit", credit)
+print(f"Posting clip {idx} from video {video_id} (credit: {credit})")
