@@ -26,3 +26,4 @@ google-auth-oauthlib==1.2.1
 google-api-python-client==2.149.0
 opencv-python-headless==4.10.0.84
 gdown==5.2.0
+yt-dlp
