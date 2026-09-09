@@ -12,6 +12,13 @@ os.makedirs("output/clip", exist_ok=True)
 state = load_state()
 
 
+def set_output(name, value):
+    gh_output = os.environ.get("GITHUB_OUTPUT")
+    if gh_output:
+        with open(gh_output, "a") as f:
+            f.write(f"{name}={value}\n")
+
+
 def gh(*args):
     result = subprocess.run(["gh"] + list(args), capture_output=True, text=True)
     return result
@@ -36,6 +43,8 @@ if state["pending_clip_indices"]:
     with open("output/queue_context.json", "w") as f:
         json.dump({"mode": "continue", "credit": state["current_video_name_credit"]}, f)
 
+    set_output("mode", "continue")
+    set_output("credit", state["current_video_name_credit"])
     print(f"Continuing queue: video={state['current_video_name']}, clip index={idx}")
 
 else:
@@ -46,6 +55,7 @@ else:
         print("No unused videos left in Drive queue.")
         with open("output/queue_context.json", "w") as f:
             json.dump({"mode": "empty"}, f)
+        set_output("mode", "empty")
         exit(0)
 
     video = remaining[0]
@@ -64,4 +74,6 @@ else:
     with open("output/queue_context.json", "w") as f:
         json.dump({"mode": "new_video", "credit": credit}, f)
 
+    set_output("mode", "new_video")
+    set_output("credit", credit)
     print(f"Starting new video: {video['name']} (credit: {credit})")
