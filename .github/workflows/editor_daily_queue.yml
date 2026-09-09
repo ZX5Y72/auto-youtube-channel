@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  process-queue:
+  post-next-clip:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -33,23 +33,12 @@ jobs:
           pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
 
-      - name: Pick next source (continue queue or pull new video)
+      - name: Pick next clip from queue
         id: pick
-        env:
-          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
-          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: python editor_pick_source.py
 
-      - name: Cut all clips (only runs for new videos)
-        if: steps.pick.outputs.mode == 'new_video'
-        timeout-minutes: 30
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: python editor_cut_all_clips.py
-
       - name: Moderation check
-        if: steps.pick.outputs.mode != 'empty'
+        if: steps.pick.outputs.mode == 'post'
         id: moderation
         timeout-minutes: 3
         env:
@@ -58,7 +47,7 @@ jobs:
         run: python editor_moderation_check.py
 
       - name: Generate metadata
-        if: steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        if: steps.pick.outputs.mode == 'post' && steps.moderation.outputs.flagged != 'true'
         timeout-minutes: 5
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -68,12 +57,12 @@ jobs:
         run: python editor_generate_metadata.py
 
       - name: Assemble clip with captions and watermark
-        if: steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        if: steps.pick.outputs.mode == 'post' && steps.moderation.outputs.flagged != 'true'
         timeout-minutes: 15
         run: python editor_assemble.py
 
       - name: Upload and schedule to EDITOR channel
-        if: steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        if: steps.pick.outputs.mode == 'post' && steps.moderation.outputs.flagged != 'true'
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 10
@@ -85,7 +74,7 @@ jobs:
           EDITOR_YT_REFRESH_TOKEN: ${{ secrets.EDITOR_YT_REFRESH_TOKEN }}
 
       - name: Translate and upload captions
-        if: steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        if: steps.pick.outputs.mode == 'post' && steps.moderation.outputs.flagged != 'true'
         timeout-minutes: 5
         continue-on-error: true
         env:
@@ -95,13 +84,13 @@ jobs:
           EDITOR_YT_REFRESH_TOKEN: ${{ secrets.EDITOR_YT_REFRESH_TOKEN }}
         run: python editor_translate_captions.py
 
-      - name: Pop used clip from pending queue
-        if: steps.pick.outputs.mode == 'continue' && success()
+      - name: Pop posted clip from queue
+        if: steps.pick.outputs.mode == 'post' && success()
         run: |
           python -c "
           from editor_queue_state import load_state, save_state
           state = load_state()
-          state['pending_clip_indices'].pop(0)
+          state['pending_clips'].pop(0)
           save_state(state)
           "
 
@@ -131,7 +120,7 @@ jobs:
           retention-days: 5
 
       - name: Notify Discord (success)
-        if: success() && steps.pick.outputs.mode != 'empty'
+        if: success() && steps.pick.outputs.mode == 'post'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
@@ -159,7 +148,7 @@ jobs:
           python notify_discord.py failure
 
       - name: Log run health (success)
-        if: success() && steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        if: success() && steps.pick.outputs.mode == 'post' && steps.moderation.outputs.flagged != 'true'
         run: python log_run_health.py editor_queue success
 
       - name: Log run health (failure)
