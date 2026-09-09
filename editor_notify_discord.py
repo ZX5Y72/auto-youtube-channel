@@ -22,6 +22,12 @@ if status == "duplicate":
     print("Discord duplicate notification sent.")
     sys.exit(0)
 
+if status == "queue_empty":
+    message = "📭 **Drive clip queue is empty.** Add more source videos to the folder."
+    requests.post(webhook_url, json={"content": message})
+    print("Discord queue-empty notification sent.")
+    sys.exit(0)
+
 if status == "success":
     url = ""
     publish_at = ""
