@@ -1,0 +1,167 @@
+name: Editor Daily Queue
+
+on:
+  schedule:
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: editor-daily-queue
+  cancel-in-progress: false
+
+jobs:
+  process-queue:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+
+      - name: Pick next source (continue queue or pull new video)
+        id: pick
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: python editor_pick_source.py
+
+      - name: Cut all clips (only runs for new videos)
+        if: steps.pick.outputs.mode == 'new_video'
+        timeout-minutes: 30
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python editor_cut_all_clips.py
+
+      - name: Moderation check
+        if: steps.pick.outputs.mode != 'empty'
+        id: moderation
+        timeout-minutes: 3
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python editor_moderation_check.py
+
+      - name: Generate metadata
+        if: steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        timeout-minutes: 5
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CREATOR_HANDLE: ${{ steps.pick.outputs.credit }}
+          ORIGINAL_LINK: ''
+        run: python editor_generate_metadata.py
+
+      - name: Assemble clip with captions and watermark
+        if: steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        timeout-minutes: 15
+        run: python editor_assemble.py
+
+      - name: Upload and schedule to EDITOR channel
+        if: steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          command: python editor_upload.py
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          EDITOR_YT_REFRESH_TOKEN: ${{ secrets.EDITOR_YT_REFRESH_TOKEN }}
+
+      - name: Translate and upload captions
+        if: steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        timeout-minutes: 5
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          EDITOR_YT_REFRESH_TOKEN: ${{ secrets.EDITOR_YT_REFRESH_TOKEN }}
+        run: python editor_translate_captions.py
+
+      - name: Pop used clip from pending queue
+        if: steps.pick.outputs.mode == 'continue' && success()
+        run: |
+          python -c "
+          from editor_queue_state import load_state, save_state
+          state = load_state()
+          state['pending_clip_indices'].pop(0)
+          save_state(state)
+          "
+
+      - name: Save queue state back to repo
+        if: always() && steps.pick.outputs.mode != 'empty'
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add -A -- editor_queue_state.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update editor queue state"
+          fi
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push && break
+            echo "Push attempt $i failed, retrying..."
+            sleep 5
+          done
+
+      - name: Upload debug artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-queue-debug-${{ github.run_number }}
+          path: output/
+          retention-days: 5
+
+      - name: Notify Discord (success)
+        if: success() && steps.pick.outputs.mode != 'empty'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          pip install requests --quiet
+          python notify_discord.py success
+
+      - name: Notify Discord (queue empty)
+        if: steps.pick.outputs.mode == 'empty'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python editor_notify_discord.py queue_empty
+
+      - name: Notify Discord (flagged by moderation)
+        if: steps.moderation.outputs.flagged == 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python editor_notify_discord.py flagged
+
+      - name: Notify Discord (failure)
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          pip install requests --quiet
+          python notify_discord.py failure
+
+      - name: Log run health (success)
+        if: success() && steps.pick.outputs.mode != 'empty' && steps.moderation.outputs.flagged != 'true'
+        run: python log_run_health.py editor_queue success
+
+      - name: Log run health (failure)
+        if: failure()
+        run: python log_run_health.py editor_queue failure
