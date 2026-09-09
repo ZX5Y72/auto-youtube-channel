@@ -1,0 +1,38 @@
+{
+  "used_video_ids": [],
+  "current_video_id": null,
+  "current_video_name": null,
+  "current_credit": null,
+  "release_tag": null,
+  "pending_clip_indices": [],
+  "youtube_creator_batches": [
+    {
+      "creator": "MrBeast",
+      "video_ids": [
+        "0e3GPea1Tyg",
+        "1WEAJ-DFkHE",
+        "KrLj6nc516A",
+        "zxYjTTXc-J8",
+        "iogcY_4xGjo",
+        "9bqk6ZUsKyA",
+        "r7zJ8srwwjk",
+        "48h57PspBec",
+        "yXWw0_UfSFg",
+        "GLoeAJUcz38",
+        "TJ2ifmkGGus",
+        "Hwybp38GnZw",
+        "yhB3BgJyGl8",
+        "jObOjhUkf50",
+        "l-nMKJ5J3Uc",
+        "9RhWXPcKBI8",
+        "7IKab3HcfFk",
+        "WTOm65IZneg",
+        "7dYTw-jAYkY",
+        "E6E22XQPhhg"
+      ],
+      "status": "done"
+    }
+  ],
+  "pending_clips": [],
+  "video_credits": {}
+}
