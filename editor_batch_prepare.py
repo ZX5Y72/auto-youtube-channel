@@ -6,28 +6,9 @@ from llm_utils import call_llm, extract_json
 from editor_queue_state import load_state, save_state
 from drive_utils import list_queue_videos, download_video, get_video_credit
 
-BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "10"))
 MAX_CLIP_DURATION = int(os.environ.get("MAX_CLIP_DURATION", "59"))
 MIN_CLIP_DURATION = 20
 GAP_BETWEEN_CLIPS = 5
-
-os.makedirs("output", exist_ok=True)
-os.makedirs("output/clip", exist_ok=True)
-
-state = load_state()
-state.setdefault("used_video_ids", [])
-state.setdefault("pending_clips", [])
-state.setdefault("video_credits", {})
-
-videos = list_queue_videos()
-remaining = [v for v in videos if v["id"] not in state["used_video_ids"]]
-batch = remaining[:BATCH_SIZE]
-
-if not batch:
-    print("No new videos available to add to the queue.")
-    exit(0)
-
-print(f"Preparing batch of {len(batch)} video(s)...")
 
 
 def get_source_dimensions(video_path):
@@ -79,40 +60,65 @@ def resolve_candidate(choice, all_words, video_duration, last_end):
     return start, end
 
 
-whisper_model = whisper.load_model("base")
-per_video_clip_lists = []
+def run_batch_prepare(batch_size=10):
+    """
+    Processes up to `batch_size` unused videos from the Drive queue, cuts every
+    possible clip from each, uploads them to per-video GitHub Releases, and
+    appends a round-robin posting order to state["pending_clips"].
+    Returns the number of clips added.
+    """
+    os.makedirs("output", exist_ok=True)
+    os.makedirs("output/clip", exist_ok=True)
 
-for video in batch:
-    video_id = video["id"]
-    credit = get_video_credit(video)
-    tag = f"editorqueue-{video_id}"
-    video_path = "output/source_video.mp4"
+    state = load_state()
+    state.setdefault("used_video_ids", [])
+    state.setdefault("pending_clips", [])
+    state.setdefault("video_credits", {})
 
-    print(f"\n--- Processing: {video['name']} (credit: {credit}) ---")
-    download_video(video_id, video_path)
+    videos = list_queue_videos()
+    remaining = [v for v in videos if v["id"] not in state["used_video_ids"]]
+    batch = remaining[:batch_size]
 
-    result = whisper_model.transcribe(video_path, word_timestamps=True, verbose=False, language="en")
-    all_words = []
-    for seg in result["segments"]:
-        for w in seg.get("words", []):
-            all_words.append({"index": len(all_words), "text": w["word"].strip(), "start": w["start"], "end": w["end"]})
+    if not batch:
+        print("No new videos available to add to the queue.")
+        return 0
 
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrapper=1:nokey=1", video_path],
-        capture_output=True, text=True
-    )
-    try:
-        video_duration = float(probe.stdout.strip())
-    except ValueError:
-        video_duration = all_words[-1]["end"] if all_words else 60
+    print(f"Preparing batch of {len(batch)} video(s)...")
 
-    if len(all_words) < 5 or video_duration < 70:
-        candidates = [{"start_word_index": 0, "end_word_index": min(150, len(all_words) - 1) if all_words else 0,
-                       "reason": "Fallback - insufficient speech for AI selection.", "suggested_title": "Highlight Clip"}]
-    else:
-        indexed_transcript = " ".join(f"[{w['index']}] {w['text']}" for w in all_words)[:15000]
-        max_possible_clips = max(1, int(video_duration // (MAX_CLIP_DURATION + GAP_BETWEEN_CLIPS)))
-        prompt = f"""
+    whisper_model = whisper.load_model("base")
+    per_video_clip_lists = []
+
+    for video in batch:
+        video_id = video["id"]
+        credit = get_video_credit(video)
+        tag = f"editorqueue-{video_id}"
+        video_path = "output/source_video.mp4"
+
+        print(f"\n--- Processing: {video['name']} (credit: {credit}) ---")
+        download_video(video_id, video_path)
+
+        result = whisper_model.transcribe(video_path, word_timestamps=True, verbose=False, language="en")
+        all_words = []
+        for seg in result["segments"]:
+            for w in seg.get("words", []):
+                all_words.append({"index": len(all_words), "text": w["word"].strip(), "start": w["start"], "end": w["end"]})
+
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrapper=1:nokey=1", video_path],
+            capture_output=True, text=True
+        )
+        try:
+            video_duration = float(probe.stdout.strip())
+        except ValueError:
+            video_duration = all_words[-1]["end"] if all_words else 60
+
+        if len(all_words) < 5 or video_duration < 70:
+            candidates = [{"start_word_index": 0, "end_word_index": min(150, len(all_words) - 1) if all_words else 0,
+                           "reason": "Fallback - insufficient speech for AI selection.", "suggested_title": "Highlight Clip"}]
+        else:
+            indexed_transcript = " ".join(f"[{w['index']}] {w['text']}" for w in all_words)[:15000]
+            max_possible_clips = max(1, int(video_duration // (MAX_CLIP_DURATION + GAP_BETWEEN_CLIPS)))
+            prompt = f"""
 Here is a transcript of a video, with each word tagged by its index number in brackets:
 
 {indexed_transcript}
@@ -128,105 +134,109 @@ Respond with ONLY a JSON object with this exact key:
 
 No markdown, no backticks, just the JSON object.
 """
-        raw_response = call_llm(prompt)
-        try:
-            parsed = extract_json(raw_response)
-            candidates = parsed["candidates"]
-        except Exception as e:
-            print(f"Could not parse candidates ({e}), using single fallback clip.")
-            candidates = [{"start_word_index": 0, "end_word_index": min(150, len(all_words) - 1),
-                           "reason": "Fallback - could not parse model response.", "suggested_title": "Highlight Clip"}]
+            raw_response = call_llm(prompt)
+            try:
+                parsed = extract_json(raw_response)
+                candidates = parsed["candidates"]
+            except Exception as e:
+                print(f"Could not parse candidates ({e}), using single fallback clip.")
+                candidates = [{"start_word_index": 0, "end_word_index": min(150, len(all_words) - 1),
+                               "reason": "Fallback - could not parse model response.", "suggested_title": "Highlight Clip"}]
 
-    src_w, src_h = get_source_dimensions(video_path)
-    is_already_vertical = (src_h / src_w) >= 1.3 if src_w else False
+        src_w, src_h = get_source_dimensions(video_path)
+        is_already_vertical = (src_h / src_w) >= 1.3 if src_w else False
 
-    resolved_clips = []
-    last_end = -GAP_BETWEEN_CLIPS
-    for choice in candidates:
-        resolved = resolve_candidate(choice, all_words, video_duration, last_end)
-        if resolved is None:
+        resolved_clips = []
+        last_end = -GAP_BETWEEN_CLIPS
+        for choice in candidates:
+            resolved = resolve_candidate(choice, all_words, video_duration, last_end)
+            if resolved is None:
+                continue
+            start, end = resolved
+            if start >= video_duration - MIN_CLIP_DURATION:
+                continue
+            resolved_clips.append({"start": start, "end": end, "reason": choice.get("reason", ""),
+                                    "suggested_title": choice.get("suggested_title", "")})
+            last_end = end
+
+        if not resolved_clips:
+            resolved_clips = [{"start": 0, "end": min(45, video_duration),
+                                "reason": "Fallback clip.", "suggested_title": "Highlight Clip"}]
+
+        print(f"Cutting {len(resolved_clips)} clip(s) for this video...")
+        for i, c in enumerate(resolved_clips):
+            start, end = c["start"], c["end"]
+            out_path = f"output/clip/clip_{i}.mp4"
+
+            if is_already_vertical:
+                vf = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920"
+            else:
+                vf = (
+                    "split[bg][fg];"
+                    "[bg]scale=1080:1920,gblur=sigma=30[bg];"
+                    "[fg]scale=1080:-2:force_original_aspect_ratio=decrease[fg];"
+                    "[bg][fg]overlay=(W-w)/2:(H-h)/2"
+                )
+
+            cmd = [
+                "ffmpeg", "-y", "-i", video_path,
+                "-ss", str(start), "-t", str(end - start),
+                "-vf", vf,
+                "-af", "silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:detection=peak,loudnorm=I=-16:TP=-1.5:LRA=11",
+                "-c:v", "libx264", "-c:a", "aac",
+                out_path
+            ]
+            result_run = subprocess.run(cmd, capture_output=True, text=True)
+            if result_run.returncode != 0:
+                print(f"FFMPEG STDERR (clip {i}):", result_run.stderr[-2000:])
+                continue
+            print(f"Cut clip {i}: {start:.1f}s - {end:.1f}s")
+            c["index"] = i
+
+        resolved_clips = [c for c in resolved_clips if os.path.exists(f"output/clip/clip_{c['index']}.mp4")]
+        if not resolved_clips:
+            print(f"No clips survived cutting for {video['name']}, skipping this video.")
             continue
-        start, end = resolved
-        if start >= video_duration - MIN_CLIP_DURATION:
-            continue
-        resolved_clips.append({"start": start, "end": end, "reason": choice.get("reason", ""),
-                                "suggested_title": choice.get("suggested_title", "")})
-        last_end = end
 
-    if not resolved_clips:
-        resolved_clips = [{"start": 0, "end": min(45, video_duration),
-                            "reason": "Fallback clip.", "suggested_title": "Highlight Clip"}]
+        with open("output/clips_meta.json", "w") as f:
+            json.dump(resolved_clips, f, indent=2)
 
-    print(f"Cutting {len(resolved_clips)} clip(s) for this video...")
-    for i, c in enumerate(resolved_clips):
-        start, end = c["start"], c["end"]
-        out_path = f"output/clip/clip_{i}.mp4"
-
-        if is_already_vertical:
-            vf = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920"
-        else:
-            vf = (
-                "split[bg][fg];"
-                "[bg]scale=1080:1920,gblur=sigma=30[bg];"
-                "[fg]scale=1080:-2:force_original_aspect_ratio=decrease[fg];"
-                "[bg][fg]overlay=(W-w)/2:(H-h)/2"
-            )
-
-        cmd = [
-            "ffmpeg", "-y", "-i", video_path,
-            "-ss", str(start), "-t", str(end - start),
-            "-vf", vf,
-            "-af", "silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:detection=peak,loudnorm=I=-16:TP=-1.5:LRA=11",
-            "-c:v", "libx264", "-c:a", "aac",
-            out_path
-        ]
-        result_run = subprocess.run(cmd, capture_output=True, text=True)
-        if result_run.returncode != 0:
-            print(f"FFMPEG STDERR (clip {i}):", result_run.stderr[-2000:])
-            continue
-        print(f"Cut clip {i}: {start:.1f}s - {end:.1f}s")
-        c["index"] = i
-
-    resolved_clips = [c for c in resolved_clips if os.path.exists(f"output/clip/clip_{c['index']}.mp4")]
-    if not resolved_clips:
-        print(f"No clips survived cutting for {video['name']}, skipping this video.")
-        continue
-
-    with open("output/clips_meta.json", "w") as f:
-        json.dump(resolved_clips, f, indent=2)
-
-    subprocess.run(["gh", "release", "create", tag, "--title", tag, "--notes", "Editor clip queue storage"],
-                   capture_output=True, text=True)
-    subprocess.run(["gh", "release", "upload", tag, "output/clips_meta.json", "--clobber"],
-                   capture_output=True, text=True)
-    for c in resolved_clips:
-        subprocess.run(["gh", "release", "upload", tag, f"output/clip/clip_{c['index']}.mp4", "--clobber"],
+        subprocess.run(["gh", "release", "create", tag, "--title", tag, "--notes", "Editor clip queue storage"],
                        capture_output=True, text=True)
-        os.remove(f"output/clip/clip_{c['index']}.mp4")
+        subprocess.run(["gh", "release", "upload", tag, "output/clips_meta.json", "--clobber"],
+                       capture_output=True, text=True)
+        for c in resolved_clips:
+            subprocess.run(["gh", "release", "upload", tag, f"output/clip/clip_{c['index']}.mp4", "--clobber"],
+                           capture_output=True, text=True)
+            os.remove(f"output/clip/clip_{c['index']}.mp4")
 
-    state["used_video_ids"].append(video_id)
-    state["video_credits"][video_id] = credit
-    per_video_clip_lists.append({
-        "video_id": video_id,
-        "release_tag": tag,
-        "clip_indices": [c["index"] for c in resolved_clips]
-    })
+        state["used_video_ids"].append(video_id)
+        state["video_credits"][video_id] = credit
+        per_video_clip_lists.append({
+            "video_id": video_id,
+            "release_tag": tag,
+            "clip_indices": [c["index"] for c in resolved_clips]
+        })
 
-    os.remove(video_path)
+        os.remove(video_path)
 
-# Round-robin interleave: one clip per video per round, cycling until all are used
-round_robin = []
-max_len = max((len(v["clip_indices"]) for v in per_video_clip_lists), default=0)
-for round_num in range(max_len):
-    for v in per_video_clip_lists:
-        if round_num < len(v["clip_indices"]):
-            round_robin.append({
-                "video_id": v["video_id"],
-                "release_tag": v["release_tag"],
-                "clip_index": v["clip_indices"][round_num]
-            })
+    round_robin = []
+    max_len = max((len(v["clip_indices"]) for v in per_video_clip_lists), default=0)
+    for round_num in range(max_len):
+        for v in per_video_clip_lists:
+            if round_num < len(v["clip_indices"]):
+                round_robin.append({
+                    "video_id": v["video_id"],
+                    "release_tag": v["release_tag"],
+                    "clip_index": v["clip_indices"][round_num]
+                })
 
-state["pending_clips"].extend(round_robin)
-save_state(state)
+    state["pending_clips"].extend(round_robin)
+    save_state(state)
 
-print(f"\nAdded {len(round_robin)} clip(s) across {len(per_video_clip_lists)} video(s) to the posting queue.")
+    print(f"\nAdded {len(round_robin)} clip(s) across {len(per_video_clip_lists)} video(s) to the posting queue.")
+    return len(round_robin)
+
+
+if __name__ == "__main__":
+    run_batch_prepare(batch_size=int(os.environ.get("BATCH_SIZE", "10")))
